@@ -32,6 +32,7 @@ while ($row = $gstmt->fetch(PDO::FETCH_ASSOC)) {
     $nid = $row['nid'];
     $title = $row['title'];
     $body = $row['body'];
+    $body = nl2br($body);
 
     $indexes[] = array('nid'=>$nid, 'title'=>$title, 'date'=>$row['timestamp']);
 
@@ -64,7 +65,8 @@ $icnter = 0;
 foreach ($chidxes as $idx => $rows) {
     $prev = $idx - 1;
     $next = $idx + 1;
-    $navbar = "<p><a href='page_${prev}.html'>上一页</a> <a href='page_${next}.html'>下一页</a> </p> <br />";
+    $total_pages = count($chidxes)-1;
+    $navbar = "<p><a href='page_0.html'>第一页</a><a href='page_${prev}.html'>上一页</a> <a href='page_${next}.html'>下一页</a> <a href='page_${total_pages}.html'>最后一页</a> </p> <br />";
     $index_page = "<!DOCTYPE HTML><html><head><meta charset='utf8'><title></title></head><body> ${navbar}";
     foreach ($rows as $idx2 => $row) {
         $nid = $row['nid'];
