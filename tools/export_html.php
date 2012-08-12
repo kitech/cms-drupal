@@ -15,6 +15,7 @@ echo $dsn . "\n";
 $dbh = new PDO($dsn, $dbuser, $dbpass, array(PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES \'UTF8\''));
 
 $sql = "SELECT * FROM node_revisions ORDER BY nid DESC  LIMIT 5600";
+$sql = "select node.nid, node.title,length(field_data_body.body_value), changed as timestamp, body_value as body  from node,field_data_body where field_data_body.entity_id=node.nid order by node.nid desc";
 
 $gstmt = $dbh->prepare($sql);
 $gstmt->execute();
