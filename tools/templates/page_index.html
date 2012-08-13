@@ -1,0 +1,63 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset='utf8'>
+<title>{$title}</title>
+<link rel="stylesheet" href="css/base.css" type="text/css" />
+</head>
+<body>
+
+<table width="80%" height="80 px" align="center">
+  <tr>
+    <td>
+      <div id="branding"><strong><a href="/">
+        <img src="./images/nullget_labs.gif" alt="www.qtchina.net " title="www.qtchina.net " id="logo" />
+        <span>www.qtchina.net</span>            </a></strong></div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+
+<table width="80%" align="center">
+  <tr>
+    <td>
+      <p>
+        <a href='page_0.html'>首页</a> &nbsp;
+        <a href='page_{$prev_page}.html'>上页</a> &nbsp;
+        <a href='page_{$next_page}.html'>下页</a> &nbsp;
+        <a href='page_{$total_pages}.html'>未页</a> 
+      </p> <br />
+    </td>
+  </tr>
+{section name=sec loop=$rows}
+  <tr>
+    <td>
+      <p>{$rows[sec].date|date_format:"%Y-%m-%d %H:%M"} &nbsp;&nbsp; <a href='{$rows[sec].url}' target='_blank'>{$rows[sec].title}</a></p>
+    </td>
+  </tr>
+{/section}
+
+  <tr>
+    <td>
+      <p>
+        <a href='page_0.html'>首页</a> &nbsp;
+        <a href='page_{$prev_page}.html'>上页</a> &nbsp;
+        <a href='page_{$next_page}.html'>下页</a> &nbsp;
+        <a href='page_{$total_pages}.html'>未页</a> 
+      </p> <br />
+    </td>
+  </tr>
+</table>
+
+<p></p>
+<p></p>
+<p></p>
+<table width="60%"><tr><td  align="center">
+<div>
+  <span>Powered by <a href="http://nullget.sourceforge.net">zexport</a></span>  </div>
+</div>
+</td></tr></table>
+ <br />
+</body>
+</html>

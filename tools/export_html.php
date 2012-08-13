@@ -1,8 +1,15 @@
 <?php 
 
 include_once('../sites/default/settings.php');
+include_once('./Smarty-3.1.10/libs/Smarty.class.php');
 
 print_r($databases);
+
+$smarty = new Smarty();
+// print_r($smarty);
+// $smarty->display('page_n.html');
+// $page_n = $smarty->fetch('page_n.html');
+// echo $page_n;
 
 $dbhost = $databases['default']['default']['host'];
 // $dbhost = "127.0.0.1";
@@ -53,6 +60,15 @@ ${body}
     $sdir = substr("${nid}", 0, 1);
     @mkdir("temp/${sdir}");
     file_put_contents("temp/${sdir}/node_${nid}.html", $html);
+
+    ////////////
+    $smarty->assign('nid', $nid);
+    $smarty->assign('title', $title);
+    $smarty->assign('body', $body);
+    $smarty->assign('date', $row['timestamp']);
+
+    $page_n = $smarty->fetch('page_n.html');
+    file_put_contents("temp/${sdir}/node_${nid}.html", $page_n);
 }
 
 
@@ -75,12 +91,25 @@ foreach ($chidxes as $idx => $rows) {
         $sdir = substr("${nid}", 0, 1);
         
         $index_page .= "<p>${date} <a href='${sdir}/node_${nid}.html' target='_blank'>${title}</a></p>\n";
+        $rows[$idx2]['url'] = "${sdir}/node_${nid}.html";
+        // $rows[$idx2]['url'] = "${sdir}/node_${nid}.html";
+        
     }
 
     $index_page .= "${navbar}</body></html>";
     
     $idx_pname = "temp/page_${idx}.html";
     file_put_contents($idx_pname, $index_page);
+
+
+    ///////////
+    $smarty->assign('curr_page', $idx);
+    $smarty->assign('prev_page', $prev);
+    $smarty->assign('next_page', $next);
+    $smarty->assign('total_pages', $total_pages);
+    $smarty->assign('rows', $rows);
+    $page_index = $smarty->fetch('page_index.html');
+    file_put_contents($idx_pname, $page_index);
 }
 
 echo "count: ${cnter} \n";
