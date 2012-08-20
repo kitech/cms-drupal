@@ -1,0 +1,575 @@
+<?php
+// $Id: csplitter.module,v 1.6.2.1 2008/04/19 12:48:02 zealy Exp $
+// mailto: i.zealy AT gmail dot com
+
+/**
+ * Implementation of hook_help
+ */
+function csplitter_help($section) {
+  $output = "";
+  
+  switch ($section) {
+    case "admin/modules#description":
+      $output = t("Provides an chinese splitter for search");
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Implementation of hook_menu
+ */
+function csplitter_menu() {
+  $items = array();
+  
+    $items['csplitter'] = array(
+      'title' => t('chinese splitter'),
+      'page callback' => 'csplitter_view',
+      'access arguments' => array('search content'),
+      'type' => MENU_CALLBACK);
+
+    $items['admin/settings/csplitter'] = array(
+      'title' => t('Chinese splitter'),
+      'description' => t('Configure relevance settings for splitter options'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('csplitter_admin_settings'),
+      'access arguments' => array('administer search'),
+      'type' => MENU_NORMAL_ITEM);
+   
+  return $items;
+}
+
+/**
+ * Menu callback; displays the module settings page.
+ */
+function csplitter_admin_settings() {
+  $form = array();
+
+  $form['weight'] = array(
+    '#type' => 'markup', 
+    '#value' => 'Optional. You can test your configuration '.l('here','csplitter').'.',
+  );
+  
+  $form['Config Algorithm'] = array('#type' => 'fieldset',
+    '#title' => t('Config Arithmetic'),
+    '#collapsible' => TRUE,
+    '#description' => t('Choose which algorithm to use. If you change algorithm, you should re-index search database.'),
+  );
+  if (!function_exists('mb_strlen')) {
+    $form['Config Algorithm']['Error Message']= array('#type' => 'markup',
+      '#value' => '<font color=red>'.t('Your PHP have no mbstring support. Csplitter require it to run correctly.').'</font>',
+      );
+    return system_settings_form($form);
+  }
+
+  $algors = array(1 => t('Forward maximum matching'), 2 => t('Conversely maximum matching'), 3 => t('Forward minimum matching'), 4 => t('Conversely minimum matching'));
+  $form['Config Algorithm']['csplitter_algorithm'] = array('#type' => 'radios',
+    '#title' => t('Default Algorithm'),
+    '#default_value' => variable_get('csplitter_algorithm', '3'),
+    '#options' => $algors,
+    '#description' => t('The default algorithm for word splitting. Minimum algorithm is much faster, but it will less precise.'),
+  );
+
+  $form['Search Word Length'] = array('#type' => 'fieldset',
+    '#title' => t('Search Word Length'),
+    '#collapsible' => TRUE,
+    '#description' => t('Search word length will visibly effect performance, 4 is default.'),
+  );
+  $form['Search Word Length']['csplitter_word_len'] = array('#type' => 'radios',
+    '#title' => t('Select Word Length'),
+    '#default_value' => variable_get('csplitter_word_len', 2),
+    '#options' => array(2,3,4,5,6,7),
+    '#description' => t("Longer word will take more time to process. If you don't know its meaning, keep it to default"),
+  );
+
+  $form['Define Cache'] = array('#type' => 'fieldset',
+    '#title' => t('Define Cache'),
+    '#collapsible' => TRUE,
+    '#description' => t('Config using cache for dictionary or not. You can test performance <a href="/csplitter">here</a>.'),
+  );
+  $cache_method = array(
+    'none' => t('No caching'), 
+    'disk' => t('Caching to disk'), 
+    'database' => t('Caching to database'),
+    'bplus' => t('Using B+ Indexed Dictionary'));
+  $form['Define Cache']['csplitter_cache'] = array('#type' => 'radios',
+    '#title' => t('Define Dictionary Caching'),
+    '#default_value' => variable_get('csplitter_cache', 'bplus'),
+    '#options' => $cache_method,
+    '#description' => t('In most server system, B+ dictionary is fastest, disk is second. The methods except B+ will take you large memory. If you use database caching, you should sure your database can accept very large sql sentence(max_allowed_packet for mysql should be > 5M possible). '),
+  );
+
+  return system_settings_form($form);
+}
+
+/* Menu callback; lists all nodes posted on a given date.
+ */
+function csplitter_view($test = NULL) {
+  global $user;
+  //$test = variable_get('csplitter_test', NULL);
+
+  //return theme('page', $output.csplitter_form());
+  return $output.drupal_get_form('csplitter_form', $test);
+}
+
+function csplitter_form($form_state, $test = NULL){
+
+  $form['test'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Input'),
+    //'#default_value' => $edit['test'],
+    '#description' => t('Input test sentences(Chinese or other) here.')
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Test')
+  );
+  //return drupal_get_form('csplitter_form', $form, 'csplitter_form');
+  return $form;
+}
+
+function csplitter_form_submit($form, $form_state){
+  if (mb_strlen($form_state['values']['test']) > 10000){
+    drupal_set_message('Csplitter: Test String is too long. ( >10000 characters )', 'error');
+  }
+  else{
+    $test = $form_state['values']['test']; 
+    $output = '';
+    $test = trim($test);
+    $function = '_csplitter_splite_'. variable_get('csplitter_algorithm', '3');
+    
+    if (mb_strlen($test)>0){
+      $cache_method = variable_get('csplitter_cache', 'bplus');
+      timer_start('csplitter');
+      $outstr = call_user_func($function, $test);//_csplitter_splite_1($test);
+      drupal_set_message($function.', cache:'.$cache_method.'. Processing used '.timer_read('csplitter')."ms");
+    }
+    //$output .= "<h4>input: ".$test."</h4>";
+    //$output .= "<h4>output: ".$outstr."</h4>";
+    drupal_set_message(t('Output:').'<br />'.$outstr);
+  }
+}
+
+function _csplitter_readkeys($filepath){
+  unset($keys);
+  $handle = fopen($filepath, 'r');
+  if ($handle){
+    while (!feof($handle)) {
+       $buffer = trim(fgets($handle));
+       $keys[$buffer] = 0;
+    }
+    fclose($handle);
+  }
+  return $keys;
+}
+
+function _csplitter_splite_3($str){
+  return _csplitter_splite_1($str, true);
+}
+
+function _csplitter_splite_1($str, $minmatch = false){
+  // Search common pattern is ignored
+  // char value is setted by search.module
+  //drupal_set_message("$str|".ord($str[0])." ".ord($str[mb_strlen($str)-1]));
+  if (ord($str[0])==239){// && ord($str[mb_strlen($str)-1]) == 239){
+    return $str;
+  }
+
+  $word_len =  variable_get('csplitter_word_len', 2) + 2;    
+  // init dictionary keys and cache array to disk
+  $cache_method = variable_get('csplitter_cache', 'bplus');
+
+  $filepath = drupal_get_path('module', 'csplitter')."/dict.txt";
+  // for big B+ dictionary, we use smallest filter keys
+  if ($cache_method == 'bplus')
+    $fdicpath = drupal_get_path('module', 'csplitter')."/bfilter.txt";
+  else
+    $fdicpath = drupal_get_path('module', 'csplitter')."/filter.txt";
+  $arraypath = drupal_get_path('module', 'csplitter')."/cs_keys.obj";
+  $fobjpath = drupal_get_path('module', 'csplitter')."/filter_keys.obj";
+
+  $cs_keys = array();
+  $cf_keys = array();
+
+  switch ($cache_method){
+    case 'none':
+        $cs_keys = _csplitter_readkeys($filepath);
+        $cf_keys = _csplitter_readkeys($fdicpath);
+      break;
+    case 'bplus':
+        $cf_keys = _csplitter_readkeys($fdicpath);
+      break;
+    case 'disk':
+        if (!file_exists($arraypath)){
+          $cs_keys = _csplitter_readkeys($filepath);
+          $serialized = serialize($cs_keys);
+          $handle = fopen($arraypath, 'w');
+          if ($handle){
+            fwrite($handle, $serialized);
+            fclose($handle);
+          }
+        }
+        else{
+          $handle = fopen($arraypath, 'r');
+          if ($handle){
+            $cs_keys = unserialize(fread($handle, filesize($arraypath)));
+            fclose($handle);
+          }
+        } 
+        // init dictionary keys and cache array to disk
+        if (!file_exists($fobjpath)){
+          $cf_keys = _csplitter_readkeys($fdicpath);
+          $serialized = serialize($cf_keys);
+          $handle = fopen($fobjpath, 'w');
+          if ($handle){
+            fwrite($handle, $serialized);
+            fclose($handle);
+          }
+        }
+        else{
+          $handle = fopen($fobjpath, 'r');
+          if ($handle){
+            $cf_keys = unserialize(fread($handle, filesize($fobjpath)));
+            fclose($handle);
+          }
+        }  
+      break;
+  case 'database':
+      	$cache = cache_get('csplitter:cs');
+      	if ($cache){
+        	$cs_keys = unserialize($cache->data);
+      	}
+      	else{
+          $cs_keys = _csplitter_readkeys($filepath);
+        	cache_set('csplitter:cs', serialize($cs_keys), time()+86400);
+      	}
+      	$cache = cache_get('csplitter:cf');
+      	if ($cache){
+        	$cf_keys = unserialize($cache->data);
+      	}
+      	else{
+          $cf_keys = _csplitter_readkeys($fdicpath);
+        	cache_set('csplitter:cf', serialize($cf_keys), time()+86400);
+      	}
+      break;
+  }    
+
+  //forward max match
+  $outstr = "";
+  //drupal_set_message(mb_strlen($str)."|$str|");
+
+  if ($cache_method == 'bplus'){
+    $handle = fopen(drupal_get_path('module', 'csplitter').'/btree.dat', 'rb');
+	
+    if ($handle == false){
+	drupal_set_message("CSplitter: open b+ file failed!");
+	return "";
+    }
+  }
+
+  for ($i=0; $i<mb_strlen($str);){
+    $found = 1;
+    $from = 1;
+    $to = $word_len + 1;
+    $step = 1;
+    for ($len = $from; $len< $to; $len += $step){
+      if ($minmatch && $found != 1) break;
+
+      $word = mb_substr($str, $i, $len, "UTF-8");
+      //drupal_set_message("$i, $len,$word");
+
+      if (ord($word[0])<176){ // not chinese
+        break;
+      }
+
+      $lastchar = mb_substr($word, $len-1, 1, "UTF-8");
+      if (array_key_exists($lastchar, $cf_keys))
+        break;
+
+      //now process chinese
+
+      if ($cache_method == 'bplus'){
+        if ($len ==1 || search_in_file($word, $handle)){
+          $found = $len;
+          continue;
+        }
+      }
+      else{
+        if ($len ==1 ||array_key_exists($word, $cs_keys)){
+          $found = $len;
+          continue;
+        }
+        //else{
+        //  $len--;
+        //  break;
+        //}
+      }
+    }
+    $word = mb_substr($str, $i, $found, "UTF-8");
+    //drupal_set_message(mb_strlen($str).": $i - $found :".$word);
+
+    if ($found >1) // || ($found == 1 && ord($word[0])>=176))
+      $outstr .= " ".$word." ";
+    else {
+      if (ord($word[0])>=176){ 
+        if (array_key_exists($word, $cf_keys))
+          $outstr .= " ".$word." ";
+        else{
+          $lastchar = mb_substr($str, $i-1, 1, "UTF-8");
+          $nextchar = mb_substr($str, $i+$found, 1, "UTF-8");
+          if (ord($lastchar[0])<176){
+            //drupal_set_message($lastchar.":".$word.":".$nextchar);
+            $word = " ".$word;
+          }
+          if (ord($nextchar[0])<176){
+            //drupal_set_message($lastchar.":".$word.":".$nextchar);
+            $word = $word." ";
+          }
+          $outstr .= $word;
+        }
+      }
+      else{
+          $outstr .= $word;
+      }
+    }
+    $i += $found;
+  }
+  
+  if ($cache_method == 'bplus'){
+	fclose($handle);	
+  }
+  //drupal_set_message($outstr);
+  return $outstr;
+}
+
+function _csplitter_splite_4($str){
+   return _csplitter_splite_2($str, true);
+}
+
+function _csplitter_splite_2($str, $minmatch = false){
+  $word_len =  variable_get('csplitter_word_len', 2) + 2;    
+  // init dictionary keys and cache array to disk
+  $cache_method = variable_get('csplitter_cache', 'bplus');
+
+  $filepath = drupal_get_path('module', 'csplitter')."/dict.txt";
+  if ($cache_method == 'bplus')
+    $fdicpath = drupal_get_path('module', 'csplitter')."/bfilter.txt";
+  else
+    $fdicpath = drupal_get_path('module', 'csplitter')."/filter.txt";
+  $arraypath = drupal_get_path('module', 'csplitter')."/cs_keys.obj";
+  $fobjpath = drupal_get_path('module', 'csplitter')."/filter_keys.obj";
+
+  $cs_keys = array();
+  $cf_keys = array();
+    
+  switch ($cache_method){
+    case 'none':
+        $cs_keys = _csplitter_readkeys($filepath);
+        $cf_keys = _csplitter_readkeys($fdicpath);
+      break;
+    case 'bplus':
+        $cf_keys = _csplitter_readkeys($fdicpath);
+      break;
+    case 'disk':
+        if (!file_exists($arraypath)){
+          $cs_keys = _csplitter_readkeys($filepath);
+          $serialized = serialize($cs_keys);
+          $handle = fopen($arraypath, 'w');
+          if ($handle){
+            fwrite($handle, $serialized);
+            fclose($handle);
+          }
+        }
+        else{
+          $handle = fopen($arraypath, 'r');
+          if ($handle){
+            $cs_keys = unserialize(fread($handle, filesize($arraypath)));
+            fclose($handle);
+          }
+        } 
+        // init dictionary keys and cache array to disk
+        if (!file_exists($fobjpath)){
+          $cf_keys = _csplitter_readkeys($fdicpath);
+          $serialized = serialize($cf_keys);
+          $handle = fopen($fobjpath, 'w');
+          if ($handle){
+            fwrite($handle, $serialized);
+            fclose($handle);
+          }
+        }
+        else{
+          $handle = fopen($fobjpath, 'r');
+          if ($handle){
+            $cf_keys = unserialize(fread($handle, filesize($fobjpath)));
+            fclose($handle);
+          }
+        }  
+      break;
+  case 'database':
+      	$cache = cache_get('csplitter:cs');
+      	if ($cache){
+        	$cs_keys = unserialize($cache->data);
+      	}
+      	else{
+          $cs_keys = _csplitter_readkeys($filepath);
+        	cache_set('csplitter:cs', serialize($cs_keys), time()+86400);
+      	}
+      	$cache = cache_get('csplitter:cf');
+      	if ($cache){
+        	$cf_keys = unserialize($cache->data);
+      	}
+      	else{
+          $cf_keys = _csplitter_readkeys($fdicpath);
+        	cache_set('csplitter:cf', serialize($cf_keys), time()+86400);
+      	}
+      break;
+  }     
+  
+  //converse max match
+  $outstr = "";
+
+  if ($cache_method == 'bplus'){
+    $handle = fopen(drupal_get_path('module', 'csplitter').'/btree.dat', 'rb');
+	
+    if ($handle == false){
+	drupal_set_message("CSplitter: open b+ file failed!");
+	return "";
+    }
+  }
+
+  for ($i=mb_strlen($str); $i>0;){
+    $found = 1;
+    for ($len = 1; $len< ($word_len+1); $len++){
+      if ($minmatch && $found != 1) break;
+      $word = mb_substr($str, $i-$len, $len, "UTF-8");
+
+      if (ord($word[0])<176){ // not chinese
+        break;
+      }
+      
+      $firstchar = mb_substr($word, 0, 1, "UTF-8");
+      if (array_key_exists($firstchar, $cf_keys))
+        break;
+
+      //now process chinese
+
+      if ($cache_method == 'bplus'){
+        if ($len ==1 || search_in_file($word, $handle)){
+          $found = $len;
+          continue;
+        }
+      }
+      else{
+        if ($len ==1 ||array_key_exists($word, $cs_keys)){
+          $found = $len;
+          continue;
+        }
+      }
+      //else{
+      //  $len--;
+      //  break;
+      //}
+    }
+    $len = $found;
+    
+    $word = mb_substr($str, $i-$len, $len, "UTF-8");
+    //drupal_set_message("$i - $found :".$word);
+
+    $outstr = ' ';
+    if ($len >1){
+      $outstr = " " .$word. " " . $outstr;
+    }
+    else{
+      $nextchar = mb_substr($str, $i-$len-1, 1, "UTF-8");
+      if (ord($nextchar[0])>=176){
+        if (ord($word[0])<176){
+          $outstr = " " . $word . $outstr;
+        }
+        else if (array_key_exists($word, $cf_keys)){
+          $outstr = " " . $word . " ". $outstr;
+        }
+        else
+          $outstr = "" . $word . $outstr;
+      }
+      else if (ord($outstr[0])>=176)
+        $outstr = $word. " " .$outstr;
+      else {
+        $outstr = $word . $outstr;
+      }
+    }
+    
+    $i -= $len;
+  }
+  
+  if ($cache_method == 'bplus'){
+	fclose($handle);	
+  }
+
+  return $outstr;
+}
+
+function csplitter_search_preprocess($text) { 
+  $function = '_csplitter_splite_'. variable_get('csplitter_algorithm', '3');
+  return call_user_func($function, $text);//_csplitter_splite_1($text);
+}
+
+//Advanced B+ Search
+function search_in_file($SearchKey, $handle){
+	
+	//Read First Record
+	fseek($handle, 160);
+	$NumItemBin = fread($handle, 4);
+	$NumNodesBin= fread($handle, 4);
+	$RootBin = fread($handle, 4);
+	
+	$NumItemArray = unpack('l',$NumItemBin);
+	$NumNodesArray = unpack('l',$NumNodesBin);
+	$RootArray = unpack('l',$RootBin);
+	
+	$found = false;
+	$NodeSize = 208;
+	$CurrentRoot = $RootArray[1];
+
+	while(($CurrentRoot != NULL && $CurrentRoot != -1) && (!$found)){
+		
+  	    fseek($handle, $CurrentRoot * $NodeSize);
+	    $CurNodeCount = fread($handle, 4);
+	    $CurNodeCount = unpack('l', $CurNodeCount);
+	    $CurNodeCount = $CurNodeCount[1];
+			
+	    for ($i=0; $i<11; $i++){
+	    	$StrBin[$i] = fread($handle, 14);
+	    	$StrArray = explode(chr(0x0), $StrBin[$i]);
+	    	$StrBin[$i] = trim($StrArray[0]);
+	    	//fread($handle, 38);
+	    }
+	    //Fix aligned bytes
+	    fread($handle, 2);
+	    for ($i=0; $i<12; $i++){
+	    	$BranchArray = unpack('l', fread($handle, 4));
+	    	$Branch[$i] = $BranchArray[1];
+	    }
+	    	
+	    if (strcmp($SearchKey, $StrBin[0]) < 0)
+	    	$Location = -1;
+	    else{
+	    	$Location = $CurNodeCount -1;
+	    	while ((strcmp($SearchKey, $StrBin[$Location])<0) && ($Location > 0)){
+	    		$Location--;
+	    	}
+	    	
+	    	if (strcmp($SearchKey, $StrBin[$Location]) == 0){
+	    		$found = true;
+	    	}
+	    }
+	
+	    if ($found == false)
+	      $CurrentRoot = $Branch[$Location +1];
+	}
+	
+//	drupal_set_message($SearchKey.':'.$found);		
+	return $found;
+}
+
+
+?>

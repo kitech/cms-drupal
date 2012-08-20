@@ -1,0 +1,11 @@
+; $Id: csplitter.info,v 1.2.2.1 2008/04/19 12:47:31 zealy Exp $
+name = CSplitter
+description = Chinese words splitter for search module.
+package = Core - optional
+
+; Information added by drupal.org packaging script on 2008-04-21
+version = "7.x-1.0"
+core = "7.x"
+project = "csplitter"
+datestamp = "1218789415"
+
