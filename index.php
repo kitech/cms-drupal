@@ -11,6 +11,8 @@
  * See COPYRIGHT.txt and LICENSE.txt.
  */
 
+require_once('redirect_newhost.php');
+
 /**
  * Root directory of Drupal installation.
  */
