@@ -35,6 +35,7 @@ settings[fntsize] = 0
 settings[roundcorners] = 1
 settings[headerimg] = 1
 settings[loginlinks] = 1
+settings[devlink] = 0
 settings[breadcrumb_display] = 1
 settings[postedby] = 0
 settings[loginlinks] = 0
@@ -45,9 +46,9 @@ settings[siteid] = ''
 scripts[] = /js/jquery.hoverIntent.minified.js
 scripts[] = /js/dropdown.js
 
-; Information added by Drupal.org packaging script on 2014-05-24
-version = "7.x-3.1"
+; Information added by Drupal.org packaging script on 2014-10-30
+version = "7.x-3.3"
 core = "7.x"
 project = "zeropoint"
-datestamp = "1400910284"
+datestamp = "1414708438"
 

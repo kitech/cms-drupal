@@ -99,6 +99,20 @@ function adsense_managed_block_configure($delta = '') {
     '#required' => TRUE,
   );
 
+  $form['ad_shape'] = array(
+    '#type' => 'select',
+    '#title' => t('Responsive ad shape'),
+    '#default_value' => isset($ad[4]) ? explode(',', $ad[4]) : 'auto',
+    '#multiple' => TRUE,
+    '#options' => array(
+      'auto' => t('Auto-sizing'),
+      'horizontal' => t('Horizontal'),
+      'vertical' => t('Vertical'),
+      'rectangle' => t('Rectangle'),
+    ),
+    '#description' => t("Shape of the responsive ad unit. Google's default is 'auto' for auto-sizing behaviour, but can also be a combiation of one or more of the following: 'rectangle', 'vertical' or 'horizontal'."),
+  );
+
   $form['ad_align'] = array(
     '#type' => 'select',
     '#title' => t('Ad alignment'),
@@ -119,7 +133,7 @@ function adsense_managed_block_configure($delta = '') {
  * Implements hook_block_save().
  */
 function adsense_managed_block_save($delta = '', $edit = array()) {
-  $data = implode(':', array(urlencode($edit['info']), $edit['ad_format'], $edit['ad_slot'], $edit['ad_align']));
+  $data = implode(':', array(urlencode($edit['info']), $edit['ad_format'], $edit['ad_slot'], $edit['ad_align'], implode(',', $edit['ad_shape'])));
   variable_set('adsense_managed_ad_block_' . $delta, $data);
 }
 
@@ -129,7 +143,8 @@ function adsense_managed_block_save($delta = '', $edit = array()) {
 function adsense_managed_block_view($delta = '') {
   if (_adsense_page_match()) {
     $ad = _adsense_managed_get_block_config($delta);
-    $block['content'] = ($ad) ? adsense_display(array('title' => $ad[0], 'format' => $ad[1], 'slot' => $ad[2])) : t('AdSense unconfigured block. <a href=!url>Click to configure.</a>', array('!url' => url('admin/structure/block/manage/adsense_managed/' . $delta)));
+    $shape = isset($ad[4]) ? $ad[4] : 'auto';
+    $block['content'] = ($ad) ? adsense_display(array('title' => $ad[0], 'format' => $ad[1], 'slot' => $ad[2], 'shape' => $shape)) : t('AdSense unconfigured block. <a href=!url>Click to configure.</a>', array('!url' => url('admin/structure/block/manage/adsense_managed/' . $delta)));
     if (!empty($ad[3])) {
       $block['content'] = "<div style='text-align:${ad[3]}'>${block['content']}</div>";
     }
@@ -166,14 +181,14 @@ function _adsense_managed_get_block_config($delta = 0) {
  * @return
  *   JavaScript that embeds the Google AdSense ad
  */
-function _adsense_managed_get_ad($format, $client, $slot) {
+function _adsense_managed_get_ad($format, $client, $slot, $shape) {
   $ad = adsense_ad_formats($format);
 
   if (($ad === NULL) || empty($slot)) {
     $output = "";
   }
   elseif (variable_get('adsense_test_mode', ADSENSE_TEST_MODE_DEFAULT)) {
-    $output = theme('adsense_placeholder', array('text' => "client = ${client}<br />slot = ${slot}<br />width = ${ad['width']}<br />height = ${ad['height']}", 'width' => $ad['width'], 'height' => $ad['height']));
+    $output = theme('adsense_placeholder', array('text' => "client = ${client}<br />slot = ${slot}<br />width = ${ad['width']}<br />height = ${ad['height']}<br />shape = ${shape}", 'width' => $ad['width'], 'height' => $ad['height']));
   }
   else {
     $secret = '';
@@ -184,7 +199,22 @@ function _adsense_managed_get_ad($format, $client, $slot) {
       $secret .= "google_language = '$lang';";
     }
 
-    if (variable_get('adsense_managed_async', ADSENSE_MANAGED_ASYNC_DEFAULT)) {
+    if ($format == 'responsive') {
+      // Responsive smart sizing code
+      $output = <<<MANAGED_RESP_SMART_TXT
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!-- $format -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-$client"
+     data-ad-slot="$slot"
+     data-ad-format="$shape"></ins>
+<script>
+(adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+MANAGED_RESP_SMART_TXT;
+    }
+    elseif (variable_get('adsense_managed_async', ADSENSE_MANAGED_ASYNC_DEFAULT)) {
       // Asynchronous code
       $output = <<<MANAGED_ASYNC_TXT
 <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>

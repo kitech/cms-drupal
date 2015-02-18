@@ -140,6 +140,13 @@ $roundcorners = theme_get_setting('roundcorners');
 }
   drupal_add_css(drupal_get_path('theme','zeropoint').'/css/print.css', array('group' => CSS_THEME, 'media' => 'print', 'every_page' => TRUE));
 
+$devlink = theme_get_setting('devlink');
+  if ($devlink == '0'){ 
+	  $dvlk = 'byy';
+  }
+  if ($devlink == '1'){ 
+	  $dvlk = 'by';
+  }
   $node = menu_get_object();
   if(isset($node->type)) {
     $nt = ucfirst($node->type).' | ';
@@ -147,7 +154,7 @@ $roundcorners = theme_get_setting('roundcorners');
   else {
     $nt='';
   }
-  $vars['page_b'] = '<div class="by"><a href="http://www.radut.net">'.$nt.'by Dr. Radut</a></div>';
+  $vars['page_b'] = '<div class="'.$dvlk.'"><a href="http://www.radut.net">'.$nt.'by Dr. Radut</a></div>';
 }
 
 

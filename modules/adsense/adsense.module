@@ -51,6 +51,7 @@ define('ADSENSE_SECRET_LANGUAGE_DEFAULT', '');
  */
 function adsense_ad_formats($key = NULL) {
   $ads = array(
+    'responsive' =>  array('type' => ADSENSE_TYPE_AD, 'desc' => t('Responsive ad unit (BETA)'), 'code' => 'responsive',       'width' =>   0, 'height' =>   0),
     '120x240'  =>  array('type' => ADSENSE_TYPE_AD,   'desc' => t('Vertical Banner'),           'code' => '120x240_as',       'width' => 120, 'height' => 240),
     '120x600'  =>  array('type' => ADSENSE_TYPE_AD,   'desc' => t('Skyscraper'),                'code' => '120x600_as',       'width' => 120, 'height' => 600),
     '125x125'  =>  array('type' => ADSENSE_TYPE_AD,   'desc' => t('Button'),                    'code' => '125x125_as',       'width' => 125, 'height' => 125),
@@ -465,7 +466,7 @@ function adsense_display() {
       // and then the default text as specified in the admin settings.
       $text = isset($args['title']) ? t('Block') . ': ' . $args['title'] . '<br />' : '';
       $text .= variable_get('adsense_placeholder_text', ADSENSE_PLACEHOLDER_TEXT_DEFAULT) . ' ' . $args['format'];
-      if ($user->uid == 1 || user_access('show adsense placeholders')) {
+      if ((isset($user) && ($user->uid == 1)) || user_access('show adsense placeholders')) {
         $text = t('Ads disabled for %name', array('%name' => $user->name)) . '<br />' . $text;
       }
 
@@ -509,7 +510,7 @@ function adsense_display() {
         break;
       default:
         if (!empty($slot) && module_exists('adsense_managed')) {
-          $ad = _adsense_managed_get_ad($args['format'], $client, $slot);
+          $ad = _adsense_managed_get_ad($args['format'], $client, $slot, $args['shape']);
           $module = 'adsense_managed';
         }
         elseif (module_exists('adsense_oldcode')) {
@@ -525,7 +526,10 @@ function adsense_display() {
         if (variable_get('adsense_unblock_ads', ADSENSE_UNBLOCK_ADS_DEFAULT)) {
           adsense_request_unblock();
         }
-        $ad = theme('adsense_ad', array('ad' => $ad, 'module' => $module, 'format' => $args['format']));
+        // If test mode, ad is already themed
+        if (!variable_get('adsense_test_mode', ADSENSE_TEST_MODE_DEFAULT)) {
+          $ad = theme('adsense_ad', array('ad' => $ad, 'module' => $module, 'format' => $args['format']));
+        }
 
         break;
     }
@@ -561,13 +565,13 @@ function adsense_request_unblock() {
  * @ingroup themeable
  */
 function theme_adsense_ad($vars) {
-  $dimensions = '';
-  if (isset($vars['format'])) {
+  $style = '';
+  if (isset($vars['format']) && ($vars['format'] != 'responsive')) {
     $ad_fmt = adsense_ad_formats($vars['format']);
-    $dimensions = "width:{$ad_fmt['width']}px;height:{$ad_fmt['height']}px;";
+    $style = "style='display:inline-block;width:{$ad_fmt['width']}px;height:{$ad_fmt['height']}px;'";
   }
 
-  return "<div class='adsense ${vars['module']}_' style='display:inline-block;${dimensions}'>\n${vars['ad']}\n</div>";
+  return "<div class='adsense' ${style}>\n${vars['ad']}\n</div>";
 }
 
 /**
@@ -670,5 +674,5 @@ function theme_adsense_placeholder($vars) {
   $style = 'border:solid 1px;display:inline-block;overflow:hidden;text-align:center;word-wrap:break-word;';
   $style .= ((!empty($vars['width'])) && (!empty($vars['height']))) ? 'width:' . ($vars['width'] - 2) . 'px;height:' . ($vars['height'] - 2) . 'px;' : '';
 
-  return "<div class='adsense-placeholder' style='${style}'>${vars['text']}</div>";
+  return "<div class='adsense adsense-placeholder' style='${style}'>${vars['text']}</div>";
 }

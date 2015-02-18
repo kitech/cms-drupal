@@ -1,9 +1,13 @@
 CHANGELOG - 0 Point for Drupal 7
 
+0 Point (Oct 30, 2014)
+-------------------------
+    o New features
+
 0 Point (May 24, 2014)
 -------------------------
     o Zero Point validates HTML5 and CSS3 with no errors
-    o Adressed some Drupal bugs which prevent HTML5 validation
+    o Addressed some Drupal bugs which prevent HTML5 validation
     o Search result preprocessing excluded
 
   New features:

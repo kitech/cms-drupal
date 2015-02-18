@@ -185,6 +185,16 @@ ul.sublayer {
 */
 
 
+/***********************/
+/* CHANGE HEADER IMAGE */
+/***********************/
+/* Deactivate the image rotator in theme's settings, change the path to your image and uncomment the lines below */
+/*
+#headimg {
+    background: #fff url(path to your image) no-repeat 100% 100%;
+}*/
+
+
 /************************/
 /* OTHER SOCIAL NETWORK */
 /***********************/
@@ -192,11 +202,3 @@ ul.sublayer {
 	background: transparent url(myother-social-network_32.png) no-repeat scroll center center; 
 }
 
-
-/*************************/
-/* REMOVE DEVELOPER LINK */
-/*************************/
-
-.by {
-	display: none;
-}

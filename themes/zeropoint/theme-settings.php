@@ -137,6 +137,12 @@ function zeropoint_form_system_theme_settings_alter(&$form, &$form_state) {
     '#default_value' => theme_get_setting('loginlinks'),
   );
 
+  $form['tnt_container']['layout_settings']['devlink'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Developer link'),
+    '#default_value' => theme_get_setting('devlink'),
+  );
+
 // Breadcrumb
   $form['tnt_container']['breadcrumb'] = array(
     '#type' => 'fieldset',
