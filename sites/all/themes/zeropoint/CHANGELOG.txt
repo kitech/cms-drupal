@@ -1,0 +1,64 @@
+CHANGELOG - ZERO POINT responsive theme for Drupal 7
+
+0 Point 7.x-4.12 (Nov 6, 2019)
+------------------------------
+    o Updated to use all versions of Yahoo Pure.CSS (https://purecss.io/). It is possible
+      to choose any of the following versions: v0.6.0, v0.6.1, v0.6.2, v1.0.0, v1.0.1 (the latest). 
+      All versions of Pure.CSS can be served form unpkg CDN over https.
+    o Font small, normal, large
+    o Improved header image rotator in MS Edge
+    o Views grid is presented now as divs instead of table
+    o PageSpeed Insights optimisation
+  Minor bugs were addressed:
+    o #2894639: Dropdown Menu items automatically load page on iPhone
+    o #3027414: zeropoint_image doesn't respect the class attribute
+    o #2918632: Icon in search block as an option.
+
+0 Point 7.x-4.11 (Dec 12, 2017)
+------------------------------
+    o Updated to use all versions of Yahoo Pure.CSS (https://purecss.io/). It is possible
+      to choose any of the following versions: v0.6.0, v0.6.1, v0.6.2, v1.0.0 (the latest).
+    o Main Menu Displayed Vertically at HTTPS site is no longer an issue. All versions 
+      of Pure.CSS are now served form unpkg CDN over https.
+    o Making a delay on the dropdown menu
+
+0 Point 7.x-4.10 (Jul 17, 2016)
+------------------------------
+    o #2767477: Error on Maintenance Page
+
+0 Point 7.x-4.8 (Jul 12, 2016)
+------------------------------
+    o Minor bugs were addressed
+
+0 Point 7.x-4.7 (Nov 6, 2015)
+------------------------------
+    o added "narrower" setting for sidebars (#2597245: Left sidebar width ...)
+    o added "show dropdown" setting
+    o added "Search engine optimization (SEO) settings"
+    o added theme's slideshow (thanks to Pradeep Saran and Mheinke)
+
+0 Point 7.x-4.6 (Sep 26, 2015)
+------------------------------
+    o Minor bugs were addressed
+
+0 Point 7.x-4.5 (Sep 6, 2015)
+------------------------------
+    o Minor bugs were addressed
+
+0 Point 7.x-4.4 (Aug 28, 2015)
+------------------------------
+    o #2536752: Round user pictures; CSS was moved to _custom-style.css
+    o Improved header image rotator
+    o #2513662: The bugy behaviour of the menu system in multilang environment was corrected
+    o Dropdown CSS for mobile devices optimization
+    o Minor bugs were addressed
+
+0 Point 7.x-4.2 (May 29, 2015)
+------------------------------
+    o #2495211: Responsive menu not showing 3rd level
+    o Mobile menu colors improvements
+
+0 Point 7.x-4.1 (Apr 28, 2015)
+------------------------------
+    o Fully responsive Zero Point branch using Yahoo Pure.css Framework
+    o A complete theme redesign made with mobile in mind: compatible, light and fast.
