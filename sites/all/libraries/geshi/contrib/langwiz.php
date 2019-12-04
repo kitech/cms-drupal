@@ -8,7 +8,7 @@
  *This script
  *
  * @author  Nigel McNie, Benny Baumann (BenBE@geshi.org), Andreas 'Segaja' Schleifer (webmaster at segaja dot de)
- * @version $Id: langwiz.php 2510 2012-06-27 15:57:55Z reedy_boy $
+ * @version $Id$
  */
 header('Content-Type: text/html; charset=utf-8');
 
@@ -43,7 +43,7 @@ define ('TYPE_ERROR', 2);
 $error_abort = false;
 $error_cache = array();
 function output_error_cache(){
-    global $error_cache, $error_abort;
+    global $error_cache;
 
     if(count($error_cache)) {
         echo "<span style=\"color: #F00; font-weight: bold;\">Failed</span><br />";
@@ -173,17 +173,20 @@ features are made available through this script.</p>
 // Rudimentary checking of where GeSHi is. In a default install it will be in ../, but
 // it could be in the current directory if the include_path is set. There's nowhere else
 // we can reasonably guess.
-if (is_readable('../geshi.php')) {
-    $path = '../';
-} elseif (is_readable('geshi.php')) {
-    $path = './';
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    //composer install
+    require __DIR__ . '/../vendor/autoload.php';
+} else if (file_exists(__DIR__ . '/../src/geshi.php')) {
+    //git checkout
+    require __DIR__ . '/../src/geshi.php';
+} else if (stream_resolve_include_path('geshi.php')) {
+    // Assume you've put geshi in the include_path already
+    require_once 'geshi.php';
 } else {
     report_error(TYPE_ERROR, 'Could not find geshi.php - make sure it is in your include path!');
 }
 
 if(!$error_abort) {
-    require $path . 'geshi.php';
-
     if(!class_exists('GeSHi')) {
         report_error(TYPE_ERROR, 'The GeSHi class was not found, although it seemed we loaded the correct file!');
     }
@@ -347,7 +350,7 @@ for($i = 1; $i <= count($kw_cases_sel); $i += 1) {
 }
 
 $lang = validate_lang();
-var_dump($lang);
+//var_dump($lang);
 echo "</pre>";
 
 ?>
@@ -801,7 +804,7 @@ echo "</pre>";
     <div id="langfile">
         <fieldset>
         <legend>Language File Source</legend>
-<?
+<?php
 $G = new GeSHi('', 'php');
 $langfile_source = gen_langfile($lang);
 $G->set_source($langfile_source);
@@ -814,7 +817,7 @@ unset($G);
     <input type="submit" name="btn" value="Send!" />
 </form>
 
-<p>Operation completed in <?
+<p>Operation completed in <?php
 $time_end = explode(' ', microtime());
 $time_diff = $time_end[0] + $time_end[1] - $time_start[0] - $time_start[1];
 
@@ -824,7 +827,7 @@ echo sprintf("%.2f", $time_diff);
 <div id="footer">GeSHi &copy; 2004-2007 Nigel McNie, 2007-2009 Benny Baumann, released under the GNU GPL</div>
 </body>
 </html>
-<?
+<?php
 
 function str_to_phpstring($str, $doublequote = false){
     if($doublequote) {
@@ -1138,12 +1141,10 @@ GESHI_LANGFILE_HEAD;
     $src .= $i[2] . "),\n";
     $src .= $i[1] . "'HIGHLIGHT_STRICT_BLOCK' => array(\n";
     $src .= $i[2] . "),\n";
-    $src .= $i[1] . "'TAB_WIDTH' => 4,\n";
+    $src .= $i[1] . "'TAB_WIDTH' => 4\n";
 
     $src .= <<<GESHI_LANGFILE_FOOTER
 );
-
-?>
 GESHI_LANGFILE_FOOTER;
 
     //Reduce source ...
@@ -1153,6 +1154,3 @@ GESHI_LANGFILE_FOOTER;
 
     return $src;
 }
-
-// vim: shiftwidth=4 softtabstop=4
-?>

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Another GeSHi example script
  *
@@ -13,17 +12,29 @@
  * aliased.php/file.name.ext.
  *
  * @author  Ross Golder <ross@golder.org>
- * @version $Id: aliased.php 2533 2012-08-15 18:49:04Z benbe $
+ * @version $Id$
  */
 
 // Your config here
 define("SOURCE_ROOT", "/var/www/your/source/root/");
 
-// Assume you've put geshi in the include_path already
-require_once("geshi.php");
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    //composer install
+    require __DIR__ . '/../vendor/autoload.php';
+} else if (file_exists(__DIR__ . '/../src/geshi.php')) {
+    //git checkout
+    require __DIR__ . '/../src/geshi.php';
+} else {
+    // Assume you've put geshi in the include_path already
+    require_once("geshi.php");
+}
+
+if (!isset($_SERVER['PATH_INFO'])) {
+    die("No file name given.\n");
+}
 
 // Get path info
-$path = SOURCE_ROOT.$_SERVER['PATH_INFO'];
+$path = SOURCE_ROOT . $_SERVER['PATH_INFO'];
 
 // Check for dickheads trying to use '../' to get to sensitive areas
 $base_path_len = strlen(SOURCE_ROOT);
