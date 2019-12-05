@@ -31,6 +31,7 @@ body {
 }
 #middlecontainer, #sidebar-left, #sidebar-right {
 	margin: 10px;
+	margin-top: 3px;
 }
 #main {
 	margin: 7px 10px;
@@ -248,14 +249,14 @@ h1#site-name a, h1#site-name a:hover {
           float: left; /* LTR */
           text-align: left; /* LTR */
           padding-top: 20px;
-    padding-bottom: 20px;
+    padding-bottom: 1px;
     padding-left: 10px;
     padding-right: 10px;
   }
   #top-elements-search {
           float: right; /* LTR */
           text-align: right; /* LTR */
-          padding-top: 8px;
+          padding-top: 6px;
     padding-bottom: 0px;
     padding-left: 10px;
     padding-right: 10px;
