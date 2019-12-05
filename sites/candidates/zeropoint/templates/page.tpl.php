@@ -101,7 +101,26 @@
   </div>
 <?php endif; ?>
 
-<div id="breadcrumb" class="clearfix"><?php print $breadcrumb; ?></div><?php print dev_link() ?>
+<?php
+  if (!function_exists('_themezp_lang_url')) {
+    function _themezp_lang_url($lang) {
+      $uo = drupal_parse_url(url(current_path()));
+      $uo['query']['lang'] = $lang;
+      return url($uo['path'], $uo);
+    }
+  }
+  $thzplangs = array('zh-hans', "简体中文", 'zh-hant', "繁體中文", 'en', "English");
+?>
+<table border=0><tr><td>
+  <div id="breadcrumb" class="clearfix"><?php print $breadcrumb; ?></div>
+</td><td></td><td align="right" style="padding-right: 32px;">
+  <?php for($i=0;$i<count($thzplangs);$i+=2) { $alang=$thzplangs[$i]; $atitle=$thzplangs[$i+1]; ?>
+    <a href="<?php echo _themezp_lang_url($alang);?>" title="<?php echo $atitle;?>">
+      <img src="/sites/all/modules/languageicons/flags/<?php echo $alang;?>.png" width="24" height="18"
+        alt="<?php echo $atitle;?>" title="<?php echo $atitle;?>" /></a>
+  <?php unset($alang); unset($atitle); } ?>
+  </td></tr></table>
+<?php print dev_link() ?>
 
 <?php if (theme_get_setting('slideshow_display')): ?>
   <?php if ($is_front || theme_get_setting('slideshow_all')): ?>
