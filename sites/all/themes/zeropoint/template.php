@@ -637,7 +637,7 @@ $devlink = theme_get_setting('devlink');
   else {
     $nt='';
   }
-  print '<div class="'.$dvlk.'"><a href="https://www.radut.com/" title="'.$nt.'Dr. Radut">DR</a></div>';
+  // print '<div class="'.$dvlk.'"><a href="https://www.radut.com/" title="'.$nt.'Dr. Radut">DR</a></div>';
 }
 
 function divider() {
