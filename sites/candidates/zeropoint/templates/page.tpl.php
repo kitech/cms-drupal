@@ -7,15 +7,47 @@
 
 <div id="header" role="banner">
 <div class="clearfix">
+  <div id="top-elements-logo">
+    <?php if ($logo): ?><a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" class="logoimg" /></a><?php endif; ?>
+  </div>
+
+  <div id="top-elements-left">
+    <a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><?php print $site_name; ?></a>
+  </div>
+  <div id="top-elements-left">
+    <div style="margin-top: -16px;">
+      <?php if ($page['topreg']): ?><div id="topreg"><?php print render ($page['topreg']); ?></div><?php endif; ?>
+    </div>
+  </div>
+
 <?php if (theme_get_setting('loginlinks') || $page['topreg']): ?>
   <div id="top-elements">
     <?php if (theme_get_setting('loginlinks')): ?><div id="user_links"><?php print login_links() ?></div><?php endif; ?>
-    <?php if ($page['topreg']): ?><div id="topreg"><?php print render ($page['topreg']); ?></div><?php endif; ?>
+    <?php if ($page['topreg'] &&FALSE): ?><div id="topreg"><?php print render ($page['topreg']); ?></div><?php endif; ?>
   </div>
 <?php endif; ?>
-  <?php if ($logo): ?><a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" class="logoimg" /></a><?php endif; ?>
+<div id="top-elements-search">
+  <?php
+    $seform = drupal_get_form('search_block_form');
+    $sekeys = array();
+    if (isset($seform['basic'])) {
+      $sekeys = $seform['basic']['keys'];
+      $sekeys['#size'] = 12; // <= 40
+      $sekeys['#maxlength'] = 20; // <= 255
+      $sekeys['#title'] = '';
+    }
+    $seform['basic']['keys'] = $sekeys;
+    print render($seform);
+    // print count($seform);
+    // print json_encode($seform['basic']['keys']);
+    // print json_encode($seform['basic']);
+  ?>
+  <!-- <img src='https://blog.akaxin.vip:4430/sites/all/themes/zeropoint/images/all/search.svg' /> -->
+</div>
+
+  <?php if ($logo && FALSE): ?><a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>" alt="<?php print t('Home'); ?>" class="logoimg" /></a><?php endif; ?>
   <div id="name-and-slogan">
-  <?php if ($site_name): ?>
+  <?php if ($site_name && FALSE): ?>
     <?php if ($title && theme_get_setting('page_h1') == '0'): ?>
       <p id="site-name"><a href="<?php print check_url($front_page); ?>" title="<?php print t('Home'); ?>"><?php print $site_name; ?></a></p>
     <?php else: ?>
