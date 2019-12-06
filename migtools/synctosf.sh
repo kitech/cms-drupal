@@ -5,7 +5,7 @@
 selfsh=$0
 selfdir=$(dirname $(readlink -f $0))
 seckeyfile=$selfdir/seckey.sh
-[[ ! -f $seckeyfile ]] || (echo 'seckey file error' && exist)
+[[ ! -f $seckeyfile ]] || (echo 'seckey file error' && exit)
 # got these vars
 #sfuser=
 #passwd=
