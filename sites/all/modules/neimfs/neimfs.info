@@ -1,0 +1,3 @@
+name = neimfs
+description = neim filesystem
+core = 7.x

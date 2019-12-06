@@ -1,0 +1,190 @@
+<?php
+
+/**
+ * Implements hook_stream_wrappers().
+  */
+function neimfs_stream_wrappers() {
+  return array(
+    'neimfs' => array(
+      'name' => t('Neim remote files'),
+      'class' => 'NeimfsStreamWrapper',
+      'description' => t('Provides neim remote files.'),
+      'type' => STREAM_WRAPPERS_NORMAL,
+    ),
+  );
+}
+
+// from devel module
+// dsm(), dvm(),dpr(),和 dvr()函数来输出调试消息
+
+function curlupfile2($requrl, $filepath, $mpname, $data, $headers) {
+  if (function_exists('curl_file_create')) { // php 5.5+
+    $cFile = curl_file_create($filepath);
+  } else { //
+    $cFile = '@' . realpath($filepath);
+  }
+  $post = $data;
+  $post[$mpname] = $cFile;
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL, $requrl);
+  if (!empty($headers)) {
+    $hdrlines = array();
+    foreach ($headers as $k => $v) {
+      $hdrlines[] = $k . ': ' . $v;
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $hdrlines);
+  }
+  curl_setopt($ch, CURLOPT_POST, 1);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  curl_setopt($ch, CURLOPT_VERBOSE, 0);
+  $result = curl_exec ($ch);
+  $errno = curl_errno($ch);
+  $errinfo = curl_error($ch);
+  curl_close ($ch);
+  if ($errno != 0) {
+    dvm(json_encode($errinfo), __FUNCTION__ . ':'. __LINE__);
+  }
+  return $result;
+}
+
+function _n163upfile2($filepath) {
+  $AppKey = ""; // TODO 后台配置
+  $SecKey = "";
+  // file format: return array('AppKey', 'SecKey');
+  $seckeyfile = dirname(__FILE__).'/neimfs_seckeys.php';
+  $keys = include($seckeyfile);
+  $AppKey = $keys[0];
+  $SecKey = $keys[1];
+
+  // 注意ntp对时
+  $ts = explode(' ',  microtime());
+  // var_dump($ts);
+  //$ts[1] = strval(intval($ts[1]) - 8*3600 + 1800);
+  $chksum = ''; // SHA1(AppSecret + Nonce + CurTime), 16进制字符(String，小写)
+  $chkstr = $SecKey.$ts[0].$ts[1];
+  $chksum = sha1($chkstr);
+  // echo $chkstr."\n";
+  // echo $chksum."\n";
+  // return ;
+  $requrl = 'https://api.netease.im/nimserver/msg/fileUpload.action';
+  $headers = array('AppKey'=>$AppKey, 'Nonce'=>$ts[0], 'CurTime'=>$ts[1], 'CheckSum'=>$chksum);
+  $data = array('ishttps'=>'true', 'expireSec'=>86400*15, 'tag'=>'tmpftran');
+  // var_dump($headers);
+  // var_dump($data);
+  $result = curlupfile2($requrl, $filepath, 'content', $data, $headers);
+  $result = json_decode($result);
+  if ($result->code == 200) {
+    $result->url = str_replace('nim-nosdn.netease.im', 'nim.nosdn.127.net', $result->url);
+  }
+  return $result;
+}
+
+const neimfslinkext = '.neimfslink';
+class NeimfsStreamWrapper extends DrupalPrivateStreamWrapper {
+  var $wrote = FALSE; // check if write close
+
+  /**
+   * Implements abstract public function getDirectoryPath()
+   */
+  public function getDirectoryPath() {
+    // dvm('getDirectoryPath');
+    $rv = variable_get('file_private_path', conf_path() . '/privfiles');
+    // dvm($rv, 'getDirectoryPath rv');
+    return $rv;
+  }
+
+  /**
+   * Overrides getExternalUrl().
+   *
+   * Return the HTML URI of a public file.
+   */
+  public function getExternalUrl(){
+    // dvm($this->uri, __FUNCTION__ . ':'. __LINE__);
+    $linkfile = $this->getLocalPath().neimfslinkext;
+    // dvm($linkfile, __FUNCTION__ . ':'. __LINE__);
+    $linkurl = @file_get_contents($linkfile);
+    if (!$linkurl) { // 在thumbnail的时候才需要到磁盘上读取
+      $linkurl = parent::getExternalUrl();
+    }
+    return $linkurl;
+    return parent::getExternalUrl();
+  }
+
+  function logit($msg, $func, $line) {
+    $setlog = FALSE;
+    if (!$setlog) return;
+    $logmsg = $func . ':' . $line . ' ' . $msg . "\n";
+    file_put_contents('/tmp/neimfs.log', $logmsg, FILE_APPEND);
+  }
+  //
+  function stream_close_hookfn() {
+    // dvm($this->uri, __FUNCTION__ . ':'. __LINE__);
+    $filepath = $this->getLocalPath();
+    $linkfile = $this->getLocalPath() . neimfslinkext;
+    $rwstr = $this->wrote ? 'wrclose':'rdclose';
+    // dvm($rwstr . $linkfile, __FUNCTION__ . ':'. __LINE__);
+    $this->logit($rwstr . $this->uri, __FUNCTION__, __LINE__);
+    $isthumb = strstr($filepath, 'styles/thumbnail');
+    if (!$this->wrote && !$isthumb) {
+      // 一次只读完成就删除原图文件
+      @unlink($filepath);
+    }
+
+    if ($this->wrote && !$isthumb) {
+      $result = _n163upfile2($filepath);
+      $resval = json_encode($result);
+      if ($result->code == 200) {
+        $resval = $result->url;
+        file_put_contents($linkfile, $resval);
+      }else{
+        dvm($resval, __FUNCTION__ . ':'. __LINE__);
+      }
+    }
+  }
+  public function stream_close() {
+    $rv = parent::stream_close();
+    if ($rv) {$this->stream_close_hookfn();}
+    return $rv;
+  }
+  public function stream_write($data) {
+    $this->wrote = TRUE;
+    return parent::stream_write($data);
+  }
+  public function unlink($uri) {
+    // dvm($uri, __FUNCTION__ . ':'. __LINE__);
+    $rv = parent::unlink($uri);
+    $linkfile = $this->getLocalPath() . neimfslinkext;
+    // dvm($linkfile, __FUNCTION__ . ':'. __LINE__);
+    @unlink($linkfile);
+    return $rv;
+  }
+
+  public function stream_open($uri, $mode, $options, &$opened_path) {
+    $this->logit($mode.$uri, __FUNCTION__, __LINE__);
+    $iswr = strstr($mode, 'w') || strstr($mode, 'a')||strstr($mode, 'x')||strstr($mode, 'c');
+    $filepath = $this->getLocalPath($uri);
+    $linkfile = $this->getLocalPath($uri) . neimfslinkext;
+    if (!$iswr && !file_exists($filepath) && file_exists($linkfile)) {
+      $this->logit('need get?'.$mode.$uri, __FUNCTION__, __LINE__);
+      $linkurl = file_get_contents($linkfile);
+      $filecc = file_get_contents($linkurl);
+      if (!$filecc) {
+        $this->logit('get http resource error'.$linkurl, __FUNCTION__, $__LINE__);
+      }else{
+        file_put_contents($filepath, $filecc);
+      }
+    }
+    $rv = parent::stream_open($uri, $mode, $options, $opened_path);
+    return $rv;
+  }
+  public function url_stat($uri, $flags) {
+    $this->logit($uri, __FUNCTION__, __LINE__);
+    $linkfile = $this->getLocalPath($uri) . neimfslinkext;
+    $rv = @stat($linkfile);
+    if (!$rv) {
+      $rv = parent::url_stat($uri, $flags);
+    }
+    return $rv;
+  }
+}
