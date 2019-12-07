@@ -61,7 +61,7 @@ function nettools_base64_page(){
     return $render_array;
 }
 
-function nettools_base64_form(){
+function nettools_base64_form($form, &$form_state){
     //提示信息，默认为markup类型。
     $form['tips'] = array(
       '#prefix' =>'<div id="tips">',
@@ -96,7 +96,7 @@ function nettools_base64_form(){
         '#title' => t('结果值'),
         '#type' => 'textarea',
         '#value' => $resval,
-        '#description' => t('ffffdesc'),
+        // '#description' => t('ffffdesc'),
       );
     }
 
@@ -119,6 +119,7 @@ function nettools_base64_form_submit($form, &$form_state){
     }else{
       $resval = base64_encode($formvals['name']);
     }
+    $form_state['rebuild'] = TRUE;
     $_SESSION['nettools-base64-form'] = $form_state['values'];
     $_SESSION['nettools-base64-form']['resval'] = $resval;
     // drupal_set_message('aaa');
@@ -139,7 +140,7 @@ function nettools_jsonfmt_page(){
     return $render_array;
 }
 
-function nettools_jsonfmt_form(){
+function nettools_jsonfmt_form($form, &$form_state){
     //提示信息，默认为markup类型。
     $form['tips'] = array(
       '#prefix' =>'<div id="tips">',
@@ -178,7 +179,7 @@ function nettools_jsonfmt_form(){
         '#type' => 'textarea',
         '#value' => $resval,
         '#rows' => $linecnt,
-        '#description' => t('ffffdesc'),
+        // '#description' => t('ffffdesc'),
       );
     }
 
@@ -195,6 +196,7 @@ function nettools_jsonfmt_form_submit($form, &$form_state){
     $formvals = $form_state['values'];
     $resval = json_decode($formvals['name']);
     $resval = json_encode($resval, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
+    $form_state['rebuild'] = TRUE;
     $_SESSION['nettools-jsonfmt-form'] = $form_state['values'];
     $_SESSION['nettools-jsonfmt-form']['resval'] = $resval;
     // drupal_set_message('aaa');
@@ -217,9 +219,13 @@ function nettools_myip_page(){
 }
 function nettools_myip_form(){
     //表单元素“姓名”
+  $ip = $_SERVER['REMOTE_ADDR'];
+  if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+  }
     $form['name'] = array(
       '#type' => 'item',
-      '#markup' => $_SERVER['REMOTE_ADDR'],
+      '#markup' => $ip,
     );
 
     return $form;
@@ -239,7 +245,7 @@ function nettools_filetran_page(){
     return $render_array;
 }
 
-function nettools_filetran_form(){
+function nettools_filetran_form($form, &$form_state){
     $sessform = isset($_SESSION['nettools-filetran-form']) ? $_SESSION['nettools-filetran-form'] : array();
 
     $form['file'] = array(
@@ -358,6 +364,7 @@ function nettools_filetran_form_submit($form, &$form_state){
     }else{
       $resval = json_encode($result);
     }
+    $form_state['rebuild'] = TRUE;
 
     //把表单的值存放在会话中去，由于这里涉及到了两个不同的表单之间传值。
     $formvals = $form_state['values'];
