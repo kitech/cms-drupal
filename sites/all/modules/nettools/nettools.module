@@ -1,0 +1,393 @@
+<?php
+
+function nettools_help($path, $arg) {
+    switch ($path) {
+      case "admin/help#nettools":
+        return '<p>'.  t("Computor and Net small tools collection") .'</p>';
+        break;
+    }
+}
+
+function nettools_block_info() {
+    $blocks['nettools'] = array(
+      'info' => t('Net tools sets'),
+    );
+    return $blocks;
+}
+
+function nettools_menu() {
+	  $items = array();
+    $items['nettools/base64'] = array(
+      'tilte' => 'Base64 编码/解码',
+      'page callback' => 'nettools_base64_page',
+      'type'     => MENU_CALLBACK,
+      'access callback' =>TRUE,
+    );
+
+    $items['nettools/jsonfmt'] = array(
+      'tilte' => 'Json 格式化',
+      'page callback' => 'nettools_jsonfmt_page',
+      'type'     => MENU_CALLBACK,
+      'access callback' =>TRUE,
+    );
+
+    $items['nettools/myip'] = array(
+      'tilte' => '我的 IP 地址',
+      'page callback' => 'nettools_myip_page',
+      'type'     => MENU_CALLBACK,
+      'access callback' =>TRUE,
+    );
+
+    $items['nettools/filetran'] = array(
+      'tilte' => '文件中转',
+      'page callback' => 'nettools_filetran_page',
+      'type'     => MENU_CALLBACK,
+      'access callback' =>TRUE,
+    );
+
+    return $items;
+}
+
+function nettools_base64_page(){
+    //我们为这个页面设置标题
+    drupal_set_title('Base64 编码/解码');
+
+    $render_array = array( '#markup' => '',);
+    //该页面的正文为一个表单，注意对于表单，这里需要使用drupal_render呈现一下。
+    $form = drupal_get_form('nettools_base64_form');
+    $render_array['#markup'] .= drupal_render($form);
+
+    //Drupal7的页面回调，返回的应该是一个数组
+    return $render_array;
+}
+
+function nettools_base64_form(){
+    //提示信息，默认为markup类型。
+    $form['tips'] = array(
+      '#prefix' =>'<div id="tips">',
+      '#markup' => t('<span class="form-required">*</span> 号为必填项。'),
+      '#suffix' =>'</div>',
+    );
+
+    $sessform = isset($_SESSION['nettools-base64-form']) ? $_SESSION['nettools-base64-form'] : array();
+    //表单元素“姓名”
+    $form['name'] = array(
+      //表单元素的#title属性，对应于实际输出中的label
+      '#title' => t('原文'),
+      //表单元素的类型，这里为textarea
+      '#type' => 'textarea',
+      //这个表单元素是必填的
+      '#required' => TRUE,
+      //表单元素的默认值，这里使用了三位运算符和isset进行判定
+      '#default_value' =>isset($sessform['name'])?
+          $sessform['name']:"",
+      //表单元素的描述，
+      '#description' => t('例如：周星驰'),
+    );
+
+    $resval = '';
+    if (isset($sessform['resval'])) {
+        $resval = $sessform['resval'];
+    }
+    unset($sessform['resval']);
+
+    if (!empty($resval)) {
+      $form['resval'] = array(
+        '#title' => t('结果值'),
+        '#type' => 'textarea',
+        '#value' => $resval,
+        '#description' => t('ffffdesc'),
+      );
+    }
+
+    //表单元素“确认”提交按钮
+    $form['submitenc'] = array(
+      '#type' => 'submit', '#value' => '编码',
+    );
+    $form['submitdec'] = array(
+      '#type' => 'submit', '#value' => '解码',
+    );
+
+    return $form;
+}
+
+function nettools_base64_form_submit($form, &$form_state){
+    //把表单的值存放在会话中去，由于这里涉及到了两个不同的表单之间传值。
+    $formvals = $form_state['values'];
+    if ($formvals['op'] == '解码') {
+      $resval = base64_decode($formvals['name']);
+    }else{
+      $resval = base64_encode($formvals['name']);
+    }
+    $_SESSION['nettools-base64-form'] = $form_state['values'];
+    $_SESSION['nettools-base64-form']['resval'] = $resval;
+    // drupal_set_message('aaa');
+    // drupal_set_message(json_encode($formvals));
+}
+
+///
+function nettools_jsonfmt_page(){
+    //我们为这个页面设置标题
+    drupal_set_title('Json 格式化');
+
+    $render_array = array( '#markup' => '',);
+    //该页面的正文为一个表单，注意对于表单，这里需要使用drupal_render呈现一下。
+    $form = drupal_get_form('nettools_jsonfmt_form');
+    $render_array['#markup'] .= drupal_render($form);
+
+    //Drupal7的页面回调，返回的应该是一个数组
+    return $render_array;
+}
+
+function nettools_jsonfmt_form(){
+    //提示信息，默认为markup类型。
+    $form['tips'] = array(
+      '#prefix' =>'<div id="tips">',
+      '#markup' => t('<span class="form-required">*</span> 号为必填项。'),
+      '#suffix' =>'</div>',
+    );
+
+    $sessform = isset($_SESSION['nettools-jsonfmt-form']) ? $_SESSION['nettools-jsonfmt-form'] : array();
+    //表单元素“姓名”
+    $form['name'] = array(
+      //表单元素的#title属性，对应于实际输出中的label
+      '#title' => t('原文'),
+      //表单元素的类型，这里为textarea
+      '#type' => 'textarea',
+      //这个表单元素是必填的
+      '#required' => TRUE,
+      //表单元素的默认值，这里使用了三位运算符和isset进行判定
+      '#default_value' =>isset($sessform['name'])?
+          $sessform['name']:"",
+      //表单元素的描述，
+      '#description' => t('例如：周星驰'),
+    );
+
+    $resval = '';
+    if (isset($sessform['resval'])) {
+        $resval = $sessform['resval'];
+    }
+    unset($sessform['resval']);
+
+    if (!empty($resval)) {
+      $lines = explode("\n", $resval);
+      $linecnt = count($lines);
+      $linecnt = $linecnt > 50 ? 50 : $linecnt;
+      $form['resval'] = array(
+        '#title' => t('结果值'),
+        '#type' => 'textarea',
+        '#value' => $resval,
+        '#rows' => $linecnt,
+        '#description' => t('ffffdesc'),
+      );
+    }
+
+    //表单元素“确认”提交按钮
+    $form['submitenc'] = array(
+      '#type' => 'submit', '#value' => '格式化',
+    );
+
+    return $form;
+}
+
+function nettools_jsonfmt_form_submit($form, &$form_state){
+    //把表单的值存放在会话中去，由于这里涉及到了两个不同的表单之间传值。
+    $formvals = $form_state['values'];
+    $resval = json_decode($formvals['name']);
+    $resval = json_encode($resval, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
+    $_SESSION['nettools-jsonfmt-form'] = $form_state['values'];
+    $_SESSION['nettools-jsonfmt-form']['resval'] = $resval;
+    // drupal_set_message('aaa');
+    // drupal_set_message(json_encode($formvals));
+}
+
+
+///
+function nettools_myip_page(){
+    //我们为这个页面设置标题
+    drupal_set_title('我的 IP 地址');
+
+    $render_array = array( '#markup' => '',);
+    //该页面的正文为一个表单，注意对于表单，这里需要使用drupal_render呈现一下。
+    $form = drupal_get_form('nettools_myip_form');
+    $render_array['#markup'] .= drupal_render($form);
+
+    //Drupal7的页面回调，返回的应该是一个数组
+    return $render_array;
+}
+function nettools_myip_form(){
+    //表单元素“姓名”
+    $form['name'] = array(
+      '#type' => 'item',
+      '#markup' => $_SERVER['REMOTE_ADDR'],
+    );
+
+    return $form;
+}
+
+///
+function nettools_filetran_page(){
+    //我们为这个页面设置标题
+    drupal_set_title('文件中转');
+
+    $render_array = array( '#markup' => '',);
+    //该页面的正文为一个表单，注意对于表单，这里需要使用drupal_render呈现一下。
+    $form = drupal_get_form('nettools_filetran_form');
+    $render_array['#markup'] .= drupal_render($form);
+
+    //Drupal7的页面回调，返回的应该是一个数组
+    return $render_array;
+}
+
+function nettools_filetran_form(){
+    $sessform = isset($_SESSION['nettools-filetran-form']) ? $_SESSION['nettools-filetran-form'] : array();
+
+    $form['file'] = array(
+      //表单元素的#title属性，对应于实际输出中的label
+      '#title' => t('支持所有常见文件类型，最大12M，有效期15天'),
+      //表单元素的类型，这里为textarea
+      '#type' => 'file',
+      //这个表单元素是必填的
+      // '#required' => TRUE,
+      //表单元素的默认值，这里使用了三位运算符和isset进行判定
+      '#default_value' =>isset($sessform['file'])? $sessform['file']:"",
+      //表单元素的描述，
+      // '#description' => t('例如：周星驰'),
+    );
+
+    $resval = '';
+    if (isset($sessform['resval'])) {
+        $resval = $sessform['resval'];
+    }
+    unset($sessform['resval']);
+    $filename = '';
+    if (isset($sessform['filename'])) {
+      $filename = $sessform['filename'];
+    }
+    unset($sessform['filename']);
+
+    if (!empty($resval)) {
+      $lines = explode("\n", $resval);
+      $linecnt = count($lines);
+      $linecnt = $linecnt > 50 ? 50 : $linecnt;
+      $form['resval'] = array(
+        '#title' => t('结果值 <a href="'.$resval.'">链接地址：'.$filename.'</a>'),
+        '#type' => 'textfield',
+        '#size' => 90,
+        '#value' => $resval,
+        // '#description' => t('<a href="'.$resval.'">链接地址</a>'),
+      );
+    }
+
+    //表单元素“确认”提交按钮
+    $form['submitenc'] = array(
+      '#type' => 'submit', '#value' => '上传',
+    );
+
+    return $form;
+}
+function curlupfile($requrl, $filepath, $mpname, $data, $headers) {
+  if (function_exists('curl_file_create')) { // php 5.5+
+    $cFile = curl_file_create($filepath);
+  } else { //
+    $cFile = '@' . realpath($filepath);
+  }
+  $post = $data;
+  $post[$mpname] = $cFile;
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL, $requrl);
+  if (!empty($headers)) {
+    $hdrlines = array();
+    foreach ($headers as $k => $v) {
+      $hdrlines[] = $k . ': ' . $v;
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $hdrlines);
+  }
+  curl_setopt($ch, CURLOPT_POST, 1);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  curl_setopt($ch, CURLOPT_VERBOSE, 0);
+  $result = curl_exec ($ch);
+  curl_close ($ch);
+  return $result;
+}
+function _n163upfile($filepath) {
+  $AppKey = ""; // TODO 后台配置
+  $SecKey = "";
+  // file format: return array('AppKey', 'SecKey');
+  $seckeyfile = dirname(__FILE__).'/../neimfs/neimfs_seckeys.php';
+  $keys = include($seckeyfile);
+  $AppKey = $keys[0];
+  $SecKey = $keys[1];
+
+  // 注意ntp对时
+  $ts = explode(' ',  microtime());
+  // var_dump($ts);
+  //$ts[1] = strval(intval($ts[1]) - 8*3600 + 1800);
+  $chksum = ''; // SHA1(AppSecret + Nonce + CurTime), 16进制字符(String，小写)
+  $chkstr = $SecKey.$ts[0].$ts[1];
+  $chksum = sha1($chkstr);
+  // echo $chkstr."\n";
+  // echo $chksum."\n";
+  // return ;
+  $requrl = 'https://api.netease.im/nimserver/msg/fileUpload.action';
+  $headers = array('AppKey'=>$AppKey, 'Nonce'=>$ts[0], 'CurTime'=>$ts[1], 'CheckSum'=>$chksum);
+  $data = array('ishttps'=>'true', 'expireSec'=>86400*15, 'tag'=>'tmpftran');
+  // var_dump($headers);
+  // var_dump($data);
+  $result = curlupfile($requrl, $filepath, 'content', $data, $headers);
+  $result = json_decode($result);
+  if ($result->code == 200) {
+    $result->url = str_replace('nim-nosdn.netease.im', 'nim.nosdn.127.net', $result->url);
+  }
+  return $result;
+}
+// $res = _n163upfile('/usr/bin/awk');
+// var_dump($res);
+function nettools_filetran_form_submit($form, &$form_state){
+    $file = $form_state['storage']['file'];
+    // We are done with the file, remove it from storage.
+    unset($form_state['storage']['file']);
+    // Make the storage of the file permanent.
+    $file->status = FILE_STATUS_PERMANENT;
+    $filename = $file->filename;
+    $filepath = drupal_realpath($file->uri); // real filesystem path
+    $result = _n163upfile($filepath);
+    if ($result->code == 200) {
+      $resval = $result->url;
+    }else{
+      $resval = json_encode($result);
+    }
+
+    //把表单的值存放在会话中去，由于这里涉及到了两个不同的表单之间传值。
+    $formvals = $form_state['values'];
+    $_SESSION['nettools-filetran-form'] = $form_state['values'];
+    $_SESSION['nettools-filetran-form']['resval'] = $resval;
+    $_SESSION['nettools-filetran-form']['filename'] = $filename;
+    // drupal_set_message('aaa');
+    // drupal_set_message(json_encode($formvals).json_encode($file).$filename.$filepath);
+}
+function nettools_filetran_form_validate($form, &$form_state) {
+    $file = file_save_upload('file', array(
+              'file_validate_size' => array(12*1024*1024),
+              // Validates file is really an image.
+              // 'file_validate_is_image' => array(),
+              // Validate extensions.
+              'file_validate_extensions' => array(
+                'png gif jpg jpeg bmp gz tgz bz2 xz rar zip apk a so exe cab dll mp3 mp4 el c cxx cpp go php py',
+              ),
+            ));
+
+    // If the file passed validation:
+    if ($file) {
+      // Move the file into the Drupal file system.
+      if ($file = file_move($file, 'public://')) {
+        // Save the file for use in the submit handler.
+        $form_state['storage']['file'] = $file;
+      } else {
+        form_set_error('file', t("Failed to write the uploaded file to the site's file folder."));
+      }
+    } else {
+      form_set_error('file', t('No file was uploaded.'));
+    }
+}

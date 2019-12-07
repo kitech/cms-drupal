@@ -1,0 +1,22 @@
+# Chinese, Simplified translation of Menu per Role (7.x-1.0)
+# Copyright (c) 2019 by the Chinese, Simplified translation team
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Menu per Role (7.x-1.0)\n"
+"POT-Creation-Date: 2019-02-02 12:47+0000\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Language-Team: Chinese, Simplified\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+msgid "Access control"
+msgstr "访问控制"
+msgid "The administrator (UID=1) sees everything"
+msgstr "管理员(UID=1) 可以看到所有东西"
+msgid ""
+"When selected, the administrator will not be affected by Menu per "
+"Role. (i.e. All the menus are visible to him.)"
+msgstr "如果选中，管理员将不受每个菜单的角色控制的影响（例如，所有的菜单对他皆是可视的）"
