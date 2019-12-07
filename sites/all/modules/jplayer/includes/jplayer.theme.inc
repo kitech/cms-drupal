@@ -128,8 +128,8 @@ function theme_jplayer_item_list($variables) {
  *   a settings array of data being passed to jPlayer instance
  */
 function jplayer_sort_files($raw_files = array(), $player_id = 0, $type = 'single', $item_type = 'file') {
-  $video_extensions = array('m4v', 'mp4', 'ogv', 'webmv');
-  $audio_extensions = array('mp3', 'm4a', 'oga', 'webma', 'wav');
+  $video_extensions = array('m4v', 'mp4', 'ogv', 'webmv','mkv');
+  $audio_extensions = array('mp3', 'm4a', 'oga', 'webma', 'wav', 'wma');
   $poster_extensions = array('jpg', 'jpeg', 'png', 'gif');
 
   $poster = NULL;
@@ -157,6 +157,9 @@ function jplayer_sort_files($raw_files = array(), $player_id = 0, $type = 'singl
     }
 
     // Get file extension from pathinfo or link_field title-attribute
+    if (!isset($item['ext']) && strstr($item['uri'], '://')) {
+      $item['ext'] = substr($item['filename'], -3); // remote filesystem
+    }
     if (!isset($item['ext'])) {
       $fileinfo = pathinfo($item['url']);
       // If the path does not have an extension, no extension element will be
