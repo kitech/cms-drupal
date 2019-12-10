@@ -1,0 +1,511 @@
+<?php
+
+/**
+ * @file
+ * The Token Content Access module file.
+ *
+ * This is a module that will prevent users from viewing an entity page w/o
+ * providing an access token via the URL.
+ */
+
+/**
+ * Implements hook_schema_alter().
+ */
+function tca_schema_alter(&$schema) {
+  // Get the Token Content Access fields.
+  $fields = tca_schema_fields();
+
+  // Get the modules that are implementing hook_tca(),
+  // and add the fields to the base table of that entity.
+  $modules = module_invoke_all('tca');
+  foreach ($modules as $module => $info) {
+    $schema[$info['base table']]['fields'] += $fields;
+  }
+}
+
+/**
+ * Helper function that defines the Token Content Access database fields.
+ *
+ * @return array
+ *   An array with the field specifications, keyed by the field name.
+ */
+function tca_schema_fields() {
+  $fields = array(
+    'tca_active' => array(
+      'description' => 'Specifies whether or not Token Content Access is active.',
+      'type' => 'int',
+      'default' => NULL,
+    ),
+    'tca_token' => array(
+      'description' => 'The tca token value.',
+      'type' => 'text',
+      'default' => NULL,
+      'size' => 'normal',
+    ),
+  );
+
+  return $fields;
+}
+
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function tca_modules_enabled($modules) {
+  foreach ($modules as $module) {
+    // If this module implements hook_tca(), we should add the Token Content
+    // Access fields to the base table of the entity type that this module is
+    // altering.
+    $function = $module . '_tca';
+    if (function_exists($function)) {
+      // Gather info about the module, entity and get the Token Content Access
+      // fields.
+      $tca_info = $function();
+      $entity_info = entity_get_info($tca_info[$module]['entity type']);
+      $fields = tca_schema_fields();
+
+      // Add each field to the base table for the entity.
+      foreach ($fields as $name => $spec) {
+        if (!db_field_exists($entity_info['base table'], $name)) {
+          db_add_field($entity_info['base table'], $name, $spec);
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ * Implements hook_modules_uninstalled().
+ */
+function tca_modules_uninstalled($modules) {
+  foreach ($modules as $module) {
+    // If this module implements hook_tca(), we should remove the Token Content
+    // Access fields from the base table of the entity type that this module is
+    // altering. We need to include the .module file manually, since the module
+    // hsa been uninstalled and therefore, isn't reachable the normal way.
+    require_once DRUPAL_ROOT . '/' . drupal_get_path('module', $module) . '/' . $module . '.module';
+    $function = $module . '_tca';
+    if (function_exists($function)) {
+      // Gather info about the module, entity and get the Token Content Access
+      // fields.
+      $tca_info = $function();
+      $entity_info = entity_get_info($tca_info[$module]['entity type']);
+      $fields = tca_schema_fields();
+
+      // Remove each field from the base table for the entity.
+      foreach ($fields as $name => $spec) {
+        if (db_field_exists($entity_info['base table'], $name)) {
+          db_drop_field($entity_info['base table'], $name);
+        }
+      }
+
+      // Delete any variables that are set for this entity.
+      foreach ($entity_info['bundles'] as $bundle => $info) {
+        tca_delete_variables($tca_info[$module]['entity type'], $bundle);
+      }
+    }
+  }
+}
+
+
+/**
+ * Implements hook_permission().
+ */
+function tca_permission() {
+  $permissions = array();
+
+  // Load information from any module that implements hook_tca().
+  $modules = module_invoke_all('tca');
+  foreach ($modules as $module => $info) {
+    // Get information about the entity.
+    $entity_info = entity_get_info($info['entity type']);
+    $entity_label = strtolower(isset($entity_info['plural label']) ? $entity_info['plural label'] : $entity_info['label']);
+
+    // Add an administer permission.
+    $permissions['administer ' . $module] = array(
+      'title' => t('Administer Token Content Access settings for @entity_type', array('@entity_type' => $entity_label)),
+    );
+
+    // Add a bypass permission.
+    $permissions['bypass ' . $module] = array(
+      'title' => t('Bypass Token Content Access action for @entity_type', array('@entity_type' => $entity_label)),
+      'description' => t('Allows user to bypass the action that has been configured for @entity_type.', array('@entity_type' => $entity_label)),
+      'restrict access' => TRUE,
+    );
+  }
+
+  return $permissions;
+}
+
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
+function tca_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  $primary = &$data['tabs'][0];
+
+  if (!is_array($primary['output'])) {
+    // There are no tabs present, exit early.
+    return;
+  }
+
+  // Get the modules that implements hook_tca().
+  $modules = module_invoke_all('tca');
+
+  // Iterate through the primary tabs, and look for the View tab for any entity
+  // that is handled by Token Content Access.
+  foreach ($primary['output'] as $delta => $element) {
+    // If path is not set on this item, just continue to the next item.
+    if (!isset($element['#link']['path'])) {
+      continue;
+    }
+
+    foreach ($modules as $module => $info) {
+      if ($element['#link']['path'] == $info['view path']) {
+        // Found the View tab, get the Token Content Access action for this
+        // entity, and remove the tab if any Token Content Access action has
+        // been set.
+        $entity_position = array_search('%', explode('/', $info['view path']));
+        $entity = menu_get_object($info['entity type'], $entity_position, $router_item['tab_root_href']);
+        if (isset($entity)) {
+          if (tca_get_active_entity($info['entity type'], $entity) && !user_access('bypass ' . $module)) {
+            unset($primary['output'][$delta]);
+          }
+        }
+      }
+    }
+  }
+
+  // Reset the count and keys for the existing tabs.
+  $primary['output'] = array_values($primary['output']);
+  $primary['count'] = count($primary['output']);
+}
+
+
+/**
+ * Form structure for the Token Content Access configuration.
+ *
+ * This should be used by other modules that wish to implement the Token Content
+ * Access configurations in any form.
+ *
+ * @param array $attach
+ *   The form that the Token Content Access form should be attached to.
+ * @param string $entity_type
+ *   The entity type that we're adding the form for, e.g. 'node'.
+ * @param string $bundle
+ *   The bundle that we're adding the form to, e.g. the content type for nodes.
+ *   This might be an empty string if we're creating a new bundle.
+ * @param string $module
+ *   The name of the module that invokes this function.
+ * @param object $entity
+ *   The entity that we're adding the form to, e.g. a node. This will be NULL if
+ *   the form is being attached to the bundle configuration form.
+ */
+function tca_form(array &$attach, $form_state, $entity_type, $bundle, $module, $entity = NULL) {
+  if (!user_access('administer ' . $module)) {
+    // The user doesn't have access, exit.
+    return;
+  }
+
+  if (isset($entity) && !tca_get_active_bundle($entity_type, $bundle)) {
+    // The form is about to be attached to an entity, but the bundle isn't
+    // allowed to use Token Content Access, exit.
+    return;
+  }
+
+  // Get information about the entity.
+  $entity_info = entity_get_info($entity_type);
+  $entity_label = strtolower(isset($entity_info['plural label']) ? $entity_info['plural label'] : $entity_info['label']);
+
+  // Get the label for the bundle. This won't be set when the user is creating a
+  // new bundle. In that case, fallback to "this bundle".
+  $bundle_label = isset($entity_info['bundles'][$bundle]['label']) ? $entity_info['bundles'][$bundle]['label'] : 'this bundle';
+
+  // Wrap everything in a fieldset.
+  $form['tca'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Token Content Access settings'),
+    '#collapsed' => FALSE,
+    '#collapsible' => TRUE,
+    '#group' => 'additional_settings',
+    '#attributes' => array('class' => array('tca-settings-form')),
+  );
+
+  // Add the invoking module to the internal values.
+  $form['tca']['tca_module'] = array(
+    '#type' => 'value',
+    '#value' => $module,
+  );
+
+  // Add the entity type to the internal values.
+  $form['tca']['tca_entity_type'] = array(
+    '#type' => 'value',
+    '#value' => $entity_type,
+  );
+
+  // Add override setting if we're editing a bundle.
+  if (!isset($entity)) {
+    $form['tca']['tca_' . $entity_type . '_active'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable Token Content Access protection.'),
+      '#default_value' => tca_get_active_bundle($entity_type, $bundle),
+      '#description' => t('If this is checked, users with the %permission permission will be able to enable Token Content Access protection for individual entities.', array('%permission' => t('Administer Token Content Access settings for @entity_type', array('@entity_type' => $entity_label)))),
+    );
+  }
+
+  // Add Token activation if we're editing a new or existing entity.
+  if (isset($entity)) {
+    // Add activation settings.
+    $form['tca']['tca_active'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable Token Content Access protection.'),
+      '#default_value' => isset($entity) ? tca_get_active_entity($entity_type, $entity) : FALSE,
+      '#description' => t('Prevent users from viewing an this @bundle page w/o providing an access token via the URL.', array('@bundle' => strtolower(isset($entity_info['plural label']) ? $entity_info['plural label'] : $bundle_label))),
+      '#attributes' => array('class' => array('tca-active-setting')),
+    );
+
+    // Only populate token information if we are editing an existing entity.
+    list($entity_id, $revision_id, $bundle) = entity_extract_ids($entity_type, $entity);
+    if ($entity_id) {
+      // Wrap the token settings in a fieldset.
+      $form['tca']['token'] = array(
+        '#prefix' => '<div id="tca-token-form-entity">',
+        '#suffix' => '</div>',
+        '#type' => 'fieldset',
+        '#title' => t('Token settings'),
+        '#description' => t('Token settings'),
+        '#attributes' => array('class' => array('tca-redirect-options')),
+        '#states' => array(
+          'visible' => array(
+            ':input[name="tca_active"]' => array('checked' => TRUE),
+          ),
+        ),
+      );
+
+      if (!isset($form_state['values']['tca_token'])) {
+        $token = tca_get_token_entity($entity_type, $entity);
+        $token = !empty($token)
+          ? tca_get_token_entity($entity_type, $entity)
+          : tca_get_token($entity_type, $entity, $value = '');
+      }
+      else {
+        $token = $form_state['values']['tca_token'];
+      }
+
+      $entity_uri = (entity_uri($entity_type, $entity));
+      $description = array();
+      $description[] = t('Append this access token to the URL as the value for the "tca" query parameter, for example:');
+      $description[] = '<pre>' . url($entity_uri['path'], array('absolute' => TRUE, 'query' => array('tca' => $token))) . '</pre>';
+      $form['tca']['token']['tca_token'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Access Token'),
+        '#default_value' => $token,
+        '#description' => '<p>' . implode('</p><p>', $description) . '</p>',
+        '#disabled' => TRUE,
+        '#attributes' => array(
+          'class' => array('tca-access-token'),
+        ),
+      );
+      // Add replace token functionality.
+      $form['tca']['tca_token_replace'] = array(
+        '#type' => 'submit',
+        '#value' => t('Regenerate Token'),
+        '#description' => t('Generate a new token.'),
+        '#submit' => array('tca_token_replace'),
+        '#ajax' => array(
+          'callback' => 'tca_token_replace_callback',
+          'wrapper' => 'tca-token-form-entity',
+        ),
+      );
+
+    }
+  }
+
+  // Attach the Token Content Access form to the main form, and add a custom
+  // validation callback.
+  $attach += $form;
+  $attach['#validate'][] = 'tca_form_validate';
+
+  // If the implementing module provides a submit function for the bundle form,
+  // we'll add it as a submit function for the attached form. We'll also make
+  // sure that this won't be added for entity forms.
+  $submit_function = $module . '_bundle_form_submit';
+  if (function_exists($submit_function) && !isset($entity)) {
+    $attach['#submit'][] = $submit_function;
+  }
+
+}
+
+
+/**
+ * Callback for "Regenerate Token" button.
+ *
+ * Selects and returns the fieldset with the token up in it.
+ */
+function tca_token_replace_callback(&$form, &$form_state) {
+  return $form['tca']['token'];
+}
+
+
+/**
+ * Submit handler for the "Regenerate Token" button.
+ */
+function tca_token_replace($form, &$form_state) {
+  $entity_type = $form_state['values']['tca_entity_type'];
+  $entity = $form_state[$entity_type];
+  $form_state['values']['tca_token'] = tca_get_token($entity_type, $entity, $value = '');
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Validation callback for the Token Content Access form.
+ */
+function tca_form_validate($form, &$form_state) {
+
+}
+
+
+/**
+ * Gets the Token Content Access active state for a bundle.
+ *
+ * @param string $entity_type
+ *   The entity type of the bundle.
+ * @param string $bundle
+ *   The bundle that we're checking.
+ *
+ * @return bool
+ *   TRUE or FALSE depending on whether or not Token Content Access
+ *   is allowed for this bundle
+ */
+function tca_get_active_bundle($entity_type, $bundle) {
+  return variable_get('tca_' . $entity_type . '_active_' . $bundle, FALSE);
+}
+
+/**
+ * Gets the Token Content Access active state for an entity.
+ *
+ * @param string $entity_type
+ *   The entity type of the entity.
+ * @param object $entity
+ *   The entity that we're checking.
+ *
+ * @return int
+ *   TRUE or FALSE depending on whether or not Token Content Access
+ *   is allowed for this entity
+ */
+function tca_get_active_entity($entity_type, $entity) {
+  return isset($entity->tca_active) ? $entity->tca_active : FALSE;
+}
+
+/**
+ * Gets the Token Content Access token for an entity.
+ *
+ * @param string $entity_type
+ *   The entity type of the entity.
+ * @param object $entity
+ *   The entity that we're checking.
+ *
+ * @return string
+ *   token value for this entity or FALSE if not set
+ */
+function tca_get_token_entity($entity_type, $entity) {
+  return isset($entity->tca_token) ? $entity->tca_token : FALSE;
+}
+
+
+/**
+ * Gets the bundle of an entity.
+ *
+ * @param string $entity_type
+ *   The entity type for the entity.
+ * @param object $entity
+ *   The entity that we're checking.
+ *
+ * @return string
+ *   The machine name for the bundle.
+ */
+function tca_entity_get_bundle($entity_type, $entity) {
+  $entity_info = entity_get_info($entity_type);
+
+  // Use the bundle key to get the bundle for this entity if the bundle key has
+  // been defined. If it hasn't, it means that this entity only provides one
+  // bundle, and that bundle will always have the same name as the entoty type.
+  // E.g, the user entity is built by one bundle, and that bundle is also called
+  // user.
+  //
+  // @see hook_entity_info()
+  return !empty($entity_info['entity keys']['bundle']) ? $entity->{$entity_info['entity keys']['bundle']} : $entity_type;
+}
+
+
+/**
+ * Deletes variables associated with an entity type and bundle.
+ *
+ * This should be executed when a module in uninstalled or a bundle is deleted.
+ */
+function tca_delete_variables($entity_type, $bundle) {
+  variable_del('tca_' . $entity_type . '_active_' . $bundle);
+}
+
+/**
+ * Determines the action that should be executed.
+ *
+ * This will actually execute the action, and should be used when the entity
+ * is being viewed.
+ *
+ * @param string $entity_type
+ *   The entity type that's being viewed, e.g. 'node'.
+ * @param object $entity
+ *   The entity that is being viewed.
+ */
+function tca_execute($entity_type, $entity) {
+  // Make sure Token Content Access is enabled for this entity.
+  if (tca_get_active_entity($entity_type, $entity)) {
+    // Get query parameters.
+    $query = drupal_get_query_parameters();
+    // Get the token value for this entity.
+    $token = tca_get_token_entity($entity_type, $entity);
+
+    // Check to see that a token was provided via the URL and that this node has
+    // a token set and check to see if these values match.
+    if (isset($query['tca']) && !empty($token) && $query['tca'] == $token) {
+      // Proceed with viewing the entity.
+      return;
+    }
+    else {
+      // Deliver a 403, and exit.
+      drupal_access_denied();
+      drupal_exit();
+    }
+  }
+}
+
+/**
+ * Generates and Token Content Access Token access token for use in URLs.
+ *
+ * This is a modified version of drupal_get_token that uses a combination
+ * of the entity id, current revision id, bundle.
+ *
+ * @param string $entity_type
+ *   The entity type; e.g. 'node' or 'user'.
+ * @param object $entity
+ *   The entity from which to extract values.
+ * @param mixed $value
+ *   An additional value to base the token on.
+ *
+ * @return mixed
+ *   string A 43-character URL-safe token for validation, based on the
+ *   properties from an entity, the current time, the hash salt provided from
+ *   drupal_get_hash_salt(), and the 'drupal_private_key' configuration
+ *   variable. Else, return FALSE.
+ */
+function tca_get_token($entity_type, $entity, $value = '') {
+  list($entity_id, $revision_id, $bundle) = entity_extract_ids($entity_type, $entity);
+  if (!empty($entity_id)) {
+    return drupal_hmac_base64($value, $entity_id . $revision_id . $entity_type . microtime() . drupal_get_private_key() . drupal_get_hash_salt());
+  }
+  else {
+    return FALSE;
+  }
+}

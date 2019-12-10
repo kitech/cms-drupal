@@ -13,6 +13,154 @@ function neimfs_stream_wrappers() {
     ),
   );
 }
+const neimfsscheme = 'neimfs://';
+const neimfsmetaext = '.neimfsmeta';
+$_upfiles = array(); // origin uri => http uri
+
+function _neimfs_isneimuri($uri) {return strstr($uri, neimfsscheme);}
+
+function _neimfs_upkv() { global $_upfiles; return $_upfiles; }
+function _neimfs_set_upkv($key, $val) {
+  global $_upfiles;
+  $_upfiles[$key] = $val;
+}
+function _neimfs_get_upkv($key) {
+  global $_upfiles;
+  if (array_key_exists($key, $_upfiles)) {
+    return $_upfiles[$key];
+  }
+  return NULL;
+}
+function _neimfs_has_upkv($key) {
+  global $_upfiles;
+  $_upfiles['dummy'] = rand(); // 有时显示 $_upfiles === null?
+  $rv =  @array_key_exists($key, $_upfiles);
+  return $rv;
+}
+
+function _neimfs_logit($msg, $func, $line) {
+  $setlog = FALSE;
+  if (!$setlog) return;
+  if (!is_string($msg)) {    $msg = json_encode($msg);  }
+  $logmsg = $func . ':' . $line . ' ' . $msg . "\n";
+  file_put_contents('/tmp/neimfs.log', $logmsg, FILE_APPEND);
+}
+
+function neimfs_file_url_alter(&$uri) {
+  if (!strstr($uri, '://')) {
+    return;
+  }
+  _neimfs_logit($uri, __FUNCTION__, __LINE__);
+}
+// 这个是最早执行的，早于stream open
+function neimfs_file_validate($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+  $dupfile = json_decode(json_encode($file));
+  $dupfile->imginfo = @getimagesize($file->uri);
+  _neimfs_set_upkv('rawup-'.$file->destination, $dupfile);
+}
+
+function _neimfs_url2name($uri, $sz, $hturi) {
+  $pti = pathinfo($uri);
+  $uo = parse_url($hturi);
+  $parts = explode('/', $uo['path']);
+  $v1 = base64_decode( $parts[1]);
+  $v2 = substr(base64_decode( $parts[2]), 3, 1000);
+  // $sz = 123;
+
+  $name = sprintf('%s_%s_%s.%s', $sz, $v1, $v2, $pti['extension']);
+  return $name;
+}
+function _neimfs_isremoteurl($uri) {
+  $pti = pathinfo($uri);
+  $res = preg_match("/(\d+)_(\d+)_(.+)_(.+-.+-.+-.+)/", $pti['filename'], $mats);
+  return $res;
+}
+
+function neimfs_file_presave($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+  _neimfs_logit(_neimfs_upkv(), __FUNCTION__, __LINE__);
+  if (_neimfs_upkv() == null) {
+    return;
+  }
+
+  if (!_neimfs_has_upkv($file->uri)) {
+    return;
+  }
+  $hturi = _neimfs_get_upkv($file->uri);
+  if (!isset($hturi)) {
+    _neimfs_logit(_neimfs_upkv(), __FUNCTION__, __LINE__);
+    return;
+  }
+  if (intval($file->filesize) <= 0) {
+    _neimfs_logit('invalid filesize'.$file->filesize, __FUNCTION__, __LINE__);
+  }
+  $altname = _neimfs_url2name($file->uri, $file->filesize, $hturi);
+  $alturi = 'neimfs://'.$altname;
+
+  $file->uri = $alturi;
+  $file->destination = $alturi;
+  $file->field_image_width = '1';
+  $file->field_image_height = '1';
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_insert($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+  $parts = pathinfo($file->filename);
+  _neimfs_logit($parts, __FUNCTION__, __LINE__);
+  // $uri = 'public://'.'mypattern_'.$file->uid .'_'. $file->timestamp . '.' . $parts['extension'];
+  // $file=file_move($file, $uri);
+  if (!isset($file->fid)) {
+      return;
+  }
+}
+function neimfs_file_update($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_delete($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_load($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_copy($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_move($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_file_download($file) {
+  _neimfs_logit($file, __FUNCTION__, __LINE__);
+}
+function neimfs_field_presave($entity_type, $entity, $field, $instance, $langcode, $items) {
+  image_field_presave($entity_type, $entity, $field, $instance, $langcode, $items);
+  _neimfs_logit($items, __FUNCTION__, __LINE__);
+}
+// add one line to image.inc:image_get_info:!is_uploaded_file:
+// $details = neimfs_image_get_info($filepath);
+function neimfs_image_get_info($uri) {
+  _neimfs_logit($uri, __FUNCTION__, __LINE__);
+  _neimfs_logit(_neimfs_upkv(), __FUNCTION__, __LINE__);
+  $pti = pathinfo($uri);
+  if (!_neimfs_has_upkv($pti['basename'])) {
+    return FALSE;
+  }
+
+  $details = FALSE;
+  $data = _neimfs_get_upkv($pti['basename']);
+  if (isset($data) && is_array($data)) {
+    $extensions = array('1' => 'gif', '2' => 'jpg', '3' => 'png');
+    $extension = isset($extensions[$data[2]]) ?  $extensions[$data[2]] : '';
+    $details = array(
+      'width'     => $data[0],
+      'height'    => $data[1],
+      'extension' => $extension,
+      'mime_type' => $data['mime'],
+    );
+  }
+
+  return $details;
+}
 
 // from devel module
 // dsm(), dvm(),dpr(),和 dvr()函数来输出调试消息
@@ -43,7 +191,7 @@ function curlupfile2($requrl, $filepath, $mpname, $data, $headers) {
   $errinfo = curl_error($ch);
   curl_close ($ch);
   if ($errno != 0) {
-    dvm(json_encode($errinfo), __FUNCTION__ . ':'. __LINE__);
+    dvm(json_encode($errinfo).$cFile, __FUNCTION__ . ':'. __LINE__);
   }
   return $result;
 }
@@ -56,6 +204,8 @@ function _n163upfile2($filepath) {
   $keys = include($seckeyfile);
   $AppKey = $keys[0];
   $SecKey = $keys[1];
+  $AppKey = _neimfs_get_setting('appkey');
+  $Seckey = _neimfs_get_setting('seckey');
 
   // 注意ntp对时
   $ts = explode(' ',  microtime());
@@ -80,111 +230,315 @@ function _n163upfile2($filepath) {
   return $result;
 }
 
-const neimfslinkext = '.neimfslink';
-class NeimfsStreamWrapper extends DrupalPrivateStreamWrapper {
+// it's now null fs
+// class NeimfsStreamWrapper implements StreamWrapperInterface {
+class NeimfsStreamWrapper extends DrupalLocalStreamWrapper {
+  var $uri = '';
+  var $handle = '';
   var $wrote = FALSE; // check if write close
+  var $wrlen = 0;
 
   /**
    * Implements abstract public function getDirectoryPath()
    */
   public function getDirectoryPath() {
-    // dvm('getDirectoryPath');
-    $rv = variable_get('file_private_path', conf_path() . '/privfiles');
-    // dvm($rv, 'getDirectoryPath rv');
+    // 不再需要实际目录了，本模块保证不向该目录写入文件
+    $rv = variable_get('file_public_path', conf_path() . '/files');
     return $rv;
   }
+  protected function getTarget($uri = NULL) {
+    if (!isset($uri)) {
+      $uri = $this->uri;
+    }
+    list($scheme, $target) = explode('://', $uri, 2);
 
+    // Remove erroneous leading or trailing, forward-slashes and backslashes.
+    return trim($target, '\\/');
+  }
+  protected function getLocalPath($uri = NULL) {
+    if (!isset($uri)) {
+      $uri = $this->uri;
+    }
+    $path = $this
+      ->getDirectoryPath() . '/' . $this
+      ->getTarget($uri);
+    $realpath = realpath($path);
+    if (!$realpath) {
+
+      // This file does not yet exist.
+      $realpath = realpath(dirname($path)) . '/' . drupal_basename($path);
+    }
+    $directory = realpath($this
+                 ->getDirectoryPath());
+    if (!$realpath || !$directory || strpos($realpath, $directory) !== 0) {
+      return FALSE;
+    }
+    return $realpath;
+  }
   /**
    * Overrides getExternalUrl().
    *
    * Return the HTML URI of a public file.
    */
   public function getExternalUrl(){
+    $this->logit($this->uri, __FUNCTION__, __LINE__);
     // dvm($this->uri, __FUNCTION__ . ':'. __LINE__);
-    $linkfile = $this->getLocalPath().neimfslinkext;
-    // dvm($linkfile, __FUNCTION__ . ':'. __LINE__);
-    $linkurl = @file_get_contents($linkfile);
-    if (!$linkurl) { // 在thumbnail的时候才需要到磁盘上读取
-      $linkurl = parent::getExternalUrl();
+    if (_neimfs_isremoteurl($this->uri)) {
+      // 这一步导致图片无预览图，使用预览图的地方也是原图链接
+      $pti = pathinfo($this->uri);
+      $this->logit($pti, __FUNCTION__, __LINE__);
+      $parts = explode('_', $pti['filename']);
+      $sz = array_shift($parts);
+      $v1 = array_shift($parts);
+      $p1 = base64_encode(strval($v1));
+      $p2 = base64_encode('nim'.implode('_', $parts));
+      return sprintf("https://nim.nosdn.127.net/%s/%s", $p1, $p2);
     }
-    return $linkurl;
+
+    return FALSE;
     return parent::getExternalUrl();
   }
 
   function logit($msg, $func, $line) {
-    $setlog = FALSE;
-    if (!$setlog) return;
-    $logmsg = $func . ':' . $line . ' ' . $msg . "\n";
-    file_put_contents('/tmp/neimfs.log', $logmsg, FILE_APPEND);
-  }
-  //
-  function stream_close_hookfn() {
-    // dvm($this->uri, __FUNCTION__ . ':'. __LINE__);
-    $filepath = $this->getLocalPath();
-    $linkfile = $this->getLocalPath() . neimfslinkext;
-    $rwstr = $this->wrote ? 'wrclose':'rdclose';
-    // dvm($rwstr . $linkfile, __FUNCTION__ . ':'. __LINE__);
-    $this->logit($rwstr . $this->uri, __FUNCTION__, __LINE__);
-    $isthumb = strstr($filepath, 'styles/thumbnail');
-    if (!$this->wrote && !$isthumb) {
-      // 一次只读完成就删除原图文件
-      @unlink($filepath);
-    }
-
-    if ($this->wrote && !$isthumb) {
-      $result = _n163upfile2($filepath);
-      $resval = json_encode($result);
-      if ($result->code == 200) {
-        $resval = $result->url;
-        file_put_contents($linkfile, $resval);
-      }else{
-        dvm($resval, __FUNCTION__ . ':'. __LINE__);
-      }
-    }
+    _neimfs_logit($msg, $func, $line);
   }
   public function stream_close() {
-    $rv = parent::stream_close();
-    if ($rv) {$this->stream_close_hookfn();}
+    $this->logit($this->uri, __FUNCTION__, __LINE__);
+    $rv = TRUE;
+    $rv = fclose($this->handle);
     return $rv;
   }
   public function stream_write($data) {
     $this->wrote = TRUE;
+    $this->wrlen += strlen($data);
+    return strlen($data);
     return parent::stream_write($data);
   }
   public function unlink($uri) {
     // dvm($uri, __FUNCTION__ . ':'. __LINE__);
-    $rv = parent::unlink($uri);
-    $linkfile = $this->getLocalPath() . neimfslinkext;
+    // $rv = parent::unlink($uri);
     // dvm($linkfile, __FUNCTION__ . ':'. __LINE__);
-    @unlink($linkfile);
+    $rv = @unlink($this->getLocalPath($uri));
+    $this->logit($this->getLocalPath($uri), __FUNCTION__, __LINE__);
     return $rv;
   }
 
   public function stream_open($uri, $mode, $options, &$opened_path) {
-    $this->logit($mode.$uri, __FUNCTION__, __LINE__);
+    $this->logit($mode.' '.$uri, __FUNCTION__, __LINE__);
     $iswr = strstr($mode, 'w') || strstr($mode, 'a')||strstr($mode, 'x')||strstr($mode, 'c');
     $filepath = $this->getLocalPath($uri);
-    $linkfile = $this->getLocalPath($uri) . neimfslinkext;
-    if (!$iswr && !file_exists($filepath) && file_exists($linkfile)) {
+    if (!$iswr && !file_exists($filepath)) {
       $this->logit('need get?'.$mode.$uri, __FUNCTION__, __LINE__);
-      $linkurl = file_get_contents($linkfile);
-      $filecc = file_get_contents($linkurl);
-      if (!$filecc) {
-        $this->logit('get http resource error'.$linkurl, __FUNCTION__, $__LINE__);
+    }
+
+    if ($iswr) {
+      $rawupfile = _neimfs_get_upkv('rawup-'.$uri); // should be /tmp/xxx
+      if (!isset($rawupfile)) {
+        dvm('wtf'.$uri, 'hehhe');
+      }
+      $result = _n163upfile2($rawupfile->uri);
+      $resval = json_encode($result);
+      if ($result->code == 200) {
+        _neimfs_set_upkv($uri, $result->url);
+        $fbname = _neimfs_url2name($uri, $rawupfile->filesize, $result->url);
+        _neimfs_set_upkv($fbname, $rawupfile->imginfo);
+        _neimfs_set_upkv($filepath, array('size'=>$rawupfile->filesize,'mode'=>0755));
       }else{
-        file_put_contents($filepath, $filecc);
+        dvm($resval, 'upload');
       }
     }
-    $rv = parent::stream_open($uri, $mode, $options, $opened_path);
-    return $rv;
+
+    $opened_path = '/dev/null';
+    $handle = fopen($opened_path, $mode);
+    $this->handle = $handle;
+    return (bool)$handle;
   }
   public function url_stat($uri, $flags) {
     $this->logit($uri, __FUNCTION__, __LINE__);
-    $linkfile = $this->getLocalPath($uri) . neimfslinkext;
-    $rv = @stat($linkfile);
-    if (!$rv) {
-      $rv = parent::url_stat($uri, $flags);
+    if (_neimfs_isremoteurl($uri)) {
+      $pti = pathinfo($uri);
+      $parts = explode('_', $pti['filename']);
+      return array('size'=>intval($parts[0]),'mode'=>0755);
     }
+
+    $filepath = $this->getLocalPath($uri);
+    $rv = FALSE;
+    $rv = @stat($filepath);
+    $this->logit($filepath.json_encode($rv), __FUNCTION__, __LINE__);
+    if ($rv) {
+      // _neimfs_set_upkv($filepath, $v);
+    }else{
+      if (_neimfs_has_upkv($filepath)) {
+        $rv = _neimfs_get_upkv($filepath);
+      }
+    }
+
     return $rv;
   }
+  public function realpath() {
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = $this->getLocalPath();
+    return $rv;
+  }
+
+  //
+  public function setUri($uri) {
+    $this->uri = isset($uri) ? $uri : $this->uri;
+  }
+  static public function getMimeType($uri, $mapping = NULL) {
+    // $this->logit('', __FUNCTION__, __LINE__);
+    return FALSE;
+  }
+  // interface stubs
+  // public function stream_open($uri, $mode, $options, &$opened_url);
+  // public function stream_close();
+  public function stream_lock($operation) {
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_lock($operation);
+    return $rv;
+  }
+  public function stream_read($count){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_read($count);
+    return $rv;
+  }
+  // public function stream_write($data);
+  public function stream_eof() {
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_eof();
+    return $rv;
+  }
+  public function stream_seek($offset, $whence){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_seek($offset, $where);
+    return $rv;
+  }
+  public function stream_flush(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_flush();
+    return $rv;
+  }
+  public function stream_tell(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_tell();
+    return $rv;
+  }
+  public function stream_stat(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::stream_stat();
+    return $rv;
+  }
+  // public function unlink($uri);
+  public function rename($from_uri, $to_uri){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::rename($form_uri, $to_uri);
+    $this->logit([$form_uri, $to_uri], __FUNCTION__, __LINE__);
+    return $rv;
+  }
+  public function mkdir($uri, $mode, $options){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::mkdir($uri, $mode, $options);
+    return $rv;
+  }
+  public function rmdir($uri, $options){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::rmdir($uri, $options);
+    return $rv;
+  }
+  // public function url_stat($uri, $flags);
+  public function dir_opendir($uri, $options){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::dir_opendir($uri, $options);
+    return $rv;
+  }
+  public function dir_readdir(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::dir_readdir();
+    return $rv;
+  }
+  public function dir_rewinddir(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::dir_rewinddir();
+    return $rv;
+  }
+  public function dir_closedir(){
+    $this->logit('', __FUNCTION__, __LINE__);
+    $rv = parent::dir_rewinddir();
+    return $rv;
+  }
+  // public function is_dir($dir) {return TRUE;}
+}
+
+/**
+ * Implements hook_menu().
+ */
+function neimfs_menu() {
+  $items = array();
+
+  $items['admin/config/media/neimfs'] = array(
+    'title' => 'Neim File System',
+    'description' => 'Configure Neim File System.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('neimfs_settings'),
+    'access arguments' => array('administer neimfs'),
+    'file' => 'neimfs.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/media/neimfs/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  return $items;
+}
+
+/**
+ * Returns the current neimfs configuration settings.
+ *
+ * The functions in S3 File System which utilize variables always accept a
+ * config array instead of calling variable_get() themselves. This allows for
+ * their callers to override these configuration settings when necessary (like
+ * when attempting to validate new settings).
+ *
+ * @param $reset bool
+ *   This function uses a static cache for performance reasons. Passing TRUE
+ *   will reset that cache.
+ *
+ * @return array
+ *   An associative array of all the neimfs_* config settings, with the "neimfs_"
+ *   prefix removed from their names. Also includes any awsdsk2_ prefixed vars,
+ *   with their prefix left intact.
+ */
+function _neimfs_get_config($reset = FALSE) {
+  $config = &drupal_static('_neimfs_get_config');
+  if ($config === NULL || $reset) {
+    // The global $conf array contains all the variables, including overrides
+    // from settings.php.
+    global $conf;
+    $config = array();
+    foreach ($conf as $key => $value) {
+      // Retrieve the neimfs_ prefixed vars, and strip the prefix.
+      if (substr($key, 0, 7) == 'neimfs_') {
+        $config[substr($key, 7)] = $value;
+      }
+    }
+  }
+  return $config;
+}
+
+/**
+ * Internal function to retrieve the value of a specific setting, taking overrides in settings.php into account.
+ *
+ * This function is most useful on the config form and for retrieving the awssdk2 settings.
+ * _neimfs_get_config() should be used in most other cases.
+ *
+ * @param string $setting
+ *   The short name of the setting. e.g. the "neimfs_use_cname" variable's short name is "use_cname".
+ */
+function _neimfs_get_setting($setting, $default = '') {
+  $config = _neimfs_get_config();
+  // Get the value from _neimfs_get_config(), if it's set. This will include any overrides from settings.php, including
+  // the awssdk2_ prefixed vars.
+  return !empty($config[$setting]) ? $config[$setting] : $default;
 }

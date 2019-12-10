@@ -124,6 +124,9 @@ function image_toolkit_invoke($method, stdClass $image, array $params = array())
 function image_get_info($filepath, $toolkit = FALSE) {
   $details = FALSE;
   if (!is_file($filepath) && !is_uploaded_file($filepath)) {
+    if (substr($filepath, 0, 7) == 'neimfs:' && function_exists('neimfs_image_get_info')) {
+      $details = neimfs_image_get_info($filepath);
+    }
     return $details;
   }
 

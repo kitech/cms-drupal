@@ -1,0 +1,13 @@
+name = Token Content Access nodes
+description = Adds Token Content Access functionality for nodes.
+core = 7.x
+dependencies[] = tca
+dependencies[] = node
+dependencies[] = ctools
+
+; Information added by Drupal.org packaging script on 2015-05-26
+version = "7.x-1.0"
+core = "7.x"
+project = "tca"
+datestamp = "1432669082"
+
