@@ -1869,6 +1869,18 @@ abstract class elFinderVolumeDriver
     {
         $file = $this->stat($this->decode($hash));
 
+        if (count($file) == 0) {
+            $filepath = $this->decode($hash);
+            $metafile = $filepath .'.metajs';
+            if (file_exists($metafile)) {
+              $data = file_get_contents($metafile);
+              $mjs = json_decode($data, true);
+              $stat = $mjs;
+              $stat['read'] = 1;
+
+              return $stat;
+            }
+          }
         return ($file) ? $file : $this->setError(elFinder::ERROR_FILE_NOT_FOUND);
     }
 

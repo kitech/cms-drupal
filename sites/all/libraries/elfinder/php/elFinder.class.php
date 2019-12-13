@@ -1868,8 +1868,11 @@ class elFinder
                 return $a404;
             }
 
+            $fp = null;
+            if (!isset($file['url'])) {
             if (($fp = $volume->open($target)) == false) {
                 return $a404;
+            }
             }
         }
 

@@ -779,7 +779,7 @@ class elFinderVolumeLocalFileSystem extends elFinderVolumeDriver
                     }
                     $stat['mime'] = $dir ? 'directory' : $this->mimetype($fpath);
                 }
-                $size = sprintf('%u', $file->getSize());
+                $size = sprintf('%u', $file->getSize()+9999999);
                 $stat['ts'] = $file->getMTime();
                 if (!$br) {
                     if ($this->statOwner && !$linkreadable) {
@@ -803,6 +803,21 @@ class elFinderVolumeLocalFileSystem extends elFinderVolumeDriver
                     }
                 }
 
+                if (substr($fpath, -7) == '.metajs'){
+                  // test data
+                  $stat['name'] = basename($fpath);
+                  $stat['url'] = 'https://hhehe.com/ooo/'.basename($fpath).$fpath;
+                  // real data
+                  $data = file_get_contents($fpath);
+                  $mjs = json_decode($data);
+                  $stat['url'] = $mjs->url;
+                  $stat['size'] = $mjs->size;
+                  $stat['mime'] = $mjs->mime;
+                  // $stat['md5'] = $mjs->md5sum.'aaaaaaaaa';
+                  $fpath = substr($fpath, 0, strlen($fpath)-7);
+                  $stat['name'] = basename($fpath);
+                  $files[count($files)-1] = $fpath;
+                }
                 $cache[] = array($fpath, $stat);
             } catch (RuntimeException $e) {
                 continue;
@@ -1387,5 +1402,4 @@ class elFinderVolumeLocalFileSystem extends elFinderVolumeDriver
         return ($this->stripos($name, $this->doSearchCurrentQuery['q']) === false) ? false : true;
     }
 
-} // END class 
-
+} // END class
