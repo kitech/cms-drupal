@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<info>
+	<id>files_external_neim</id>
+	<name>External Storage backend for Neim</name>
+	<description>
+		This application enables integrating Neim external storages via the
+		Dropbox API v2.
+		Once a Dropbox account is integrated by an administrator or the user in
+		self-service, users see a folder structure that mirrors their Dropbox
+		hierarchy.
+		Users can then selectively sync files to their desktop or access them on
+		mobile devices like any other file in Nextcloud. The files will remain
+		in the Dropbox storage but are now accessible in a secure and fully
+		logged and traceable way through Nextcloud.
+
+		Administrators and users (when enabled) can find external storage
+		configuration options in the 'Storage' section of admin and user
+		settings, respectively.
+	</description>
+	<summary>Integrate Dropbox as an external storage</summary>
+	<licence>GPLv2</licence>
+	<author>Robin Appelman</author>
+	<author>Hemant Mann</author>
+	<version>1.0.0</version>
+	<category>files</category>
+	<documentation>
+		<admin>
+			https://docs.nextcloud.com/server/12/admin_manual/configuration_files/external_storage/dropbox.html
+		</admin>
+	</documentation>
+	<screenshot>
+		https://raw.githubusercontent.com/icewind1991/files_external_dropbox/master/screenshots/screenshots-app-external-storage-dropbox.jpg
+	</screenshot>
+	<screenshot>
+		https://raw.githubusercontent.com/icewind1991/files_external_dropbox/master/screenshots/settings.png
+	</screenshot>
+	<types>
+		<filesystem/>
+	</types>
+
+	<dependencies>
+		<nextcloud min-version="12.0" max-version="17.0"/>
+	</dependencies>
+	<website>https://github.com/icewind1991/files_external_neim/</website>
+	<bugs>https://github.com/icewind1991/files_external_neim/issues</bugs>
+	<repository type="git">
+		https://github.com/icewind1991/files_external_neim.git
+	</repository>
+</info>
