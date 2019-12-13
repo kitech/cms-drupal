@@ -1,0 +1,48 @@
+/*
+ * elFinder Integration
+ *
+ * Copyright (c) 2010-2018, Alexey Sukhotin. All rights reserved.
+ */
+
+#finder .elfinder-statusbar {
+    padding: .2em 1em;
+}
+
+#finder fieldset.elfinder-resize-preset-container {
+    padding: .5em;
+}
+
+#finder .ui-dialog input[type='text'] {
+    padding: 1px 2px;
+}
+
+#finder .ui-dialog tr td {
+    border-right: none;
+    vertical-align: top;
+}
+
+#finder .ui-dialog textarea#elfinder-fm-file-desc {
+    background: #FFF;
+}
+
+#finder .elfinder-cwd-view-icons .elfinder-cwd-icon.elfinder-cwd-bgurl:before {
+    font-family: inherit;
+}
+
+/* elfinder popup window */
+body.elfinder #finder {
+    border: none;
+}
+
+body.elfinder .elfinder-toolbar,
+body.elfinder .elfinder-statusbar {
+    border-radius: 0 !important;
+}
+
+#elfinder-messages {
+    display: none;
+}
+
+#elfinder-messages.legacy {
+    display: block;
+}

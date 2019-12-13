@@ -1,0 +1,8 @@
+#filebrowser-form-actions img {
+    max-width:none;
+}
+
+#filebrowser-form-actions th.select-all {
+    width:1%;
+    max-width: 18px;
+}
