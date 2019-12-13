@@ -143,8 +143,9 @@ function theme_dir_listing_list_view($node) {
             break;
 
           case FILEBROWSER_DATA_NAME_DISPLAY_NAME :
+            $showurl = isset($data['exturl']) ? $data['exturl'] : $data['url'];
             $unsorted_rows[$file_name][FILEBROWSER_DATA_NAME_DISPLAY_NAME] =
-              '<a href="' . $data['url'] . '">' .
+              '<a href="' . $showurl . '">' .
                 ($data['display-name'] == '..' ? t('Go up') : $data['display-name']) .
               '</a>' .
               theme('mark', array('type' => $data['status']));
@@ -281,11 +282,23 @@ function theme_dir_listing_list_view($node) {
     $rows = array();
     foreach ($just_folders as $data) {
       //debug($data, 'folders');
-      $rows[$data['fid']] = $unsorted_rows[$data['display-name']];
+      $dspname = $data['display-name'];
+      $dspname2 = $dspname . '.metajs';
+      if (isset($unsorted_rows[$dspname2])) {
+        $rows[$data['fid']] = $unsorted_rows[$dspname2];
+      }else{
+        $rows[$data['fid']] = $unsorted_rows[$data['display-name']];
+      }
     }
     foreach ($just_files as $data) {
       //debug($data, 'files');
-      $rows[$data['fid']] = $unsorted_rows[$data['display-name']];
+      $dspname = $data['display-name'];
+      $dspname2 = $dspname . '.metajs';
+      if (isset($unsorted_rows[$dspname2])) {
+        $rows[$data['fid']] = $unsorted_rows[$dspname2];
+      }else{
+        $rows[$data['fid']] = $unsorted_rows[$data['display-name']];
+      }
     }
     $output = theme('table', array('header' => $header, 'rows' => $rows));
     if ($has_actions) {

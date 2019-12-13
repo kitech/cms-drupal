@@ -1267,6 +1267,22 @@ function filebrowser_filebrowser_metadata_get($file) {
     $result['created'] = $f_stats['ctime'];
     $result['modified'] = $f_stats['mtime'];
   }
+
+  if (substr($full_path, -7) == '.metajs') {
+    $result['description'] .= 'hhehehhe';
+    $result['description'] = 'mjs';
+    $data = file_get_contents($full_path);
+    $mjs = json_decode($data);
+    $result['exturl'] = $mjs->url;
+    $result['size'] = $mjs->size;
+    $result['modified'] = $mjs->ctime;
+    $result['mime-type'] = !$is_file ? "folder" : $mjs->mime;
+    // $result['description'] .= json_encode($file);
+    // $result['description'] .= '-'.$mjs->url;
+    // $result['description'] = $file['nid'];
+    $result['display-name'] = substr($file['display-name'], 0, strlen($file['display-name'])-7);
+    $file['display-name'] = substr($file['display-name'], 0, strlen($file['display-name'])-7);
+  }
   return $result;
 }
 
