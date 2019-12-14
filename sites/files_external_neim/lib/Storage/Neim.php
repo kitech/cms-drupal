@@ -98,11 +98,12 @@ class Neim extends \OC\Files\Storage\Common  {
         $srcfile = substr($stk['file'], strlen('/home/gzleo/nextcloud/'));
         $srcfile= '';
         $allstk = json_encode($stk,  JSON_PRETTY_PRINT);
-        $fullmsg = 'neim'.$srcfile.':'. $funcname.':'.$line.': '.json_encode($mixed)."\n";
+        $fullmsg = 'neim'.$srcfile.':'. $funcname.':'.$line.': '.json_encode($mixed, JSON_UNESCAPED_UNICODE)."\n";
         // $this->logger->warning();
         file_put_contents($file, $fullmsg, FILE_APPEND);
     }
 
+    // ov means overlay
     private $ovroot = '';
     private $ovcache = '';
     private $ovmeta = '';
@@ -239,7 +240,7 @@ class Neim extends \OC\Files\Storage\Common  {
     public function stat($path){
         $this->logit($path, __FUNCTION__, __LINE__);
         $dir = $this->ovroot . $path;
-        $rv = stat($dir);
+        $rv = @stat($dir);
         if (!$rv) {
             $this->loadMetaData($path);
         }
@@ -391,7 +392,7 @@ class Neim extends \OC\Files\Storage\Common  {
 	 * @since 6.0.0
 	 */
     public function file_exists($path){
-        $this->logit($path, __FUNCTION__, __LINE__);
+        // $this->logit($path, __FUNCTION__, __LINE__);
         if ($path == "") {
             return true;
         }
@@ -477,7 +478,13 @@ class Neim extends \OC\Files\Storage\Common  {
         $this->logit($path1.' -> '.$path2, __FUNCTION__, __LINE__);
         $filepath1 = $this->ovroot . $path1;
         $filepath2 = $this->ovroot . $path2;
-        $rv = rename($filepath1, $filepath2);
+        if (is_dir($filepath1)) {
+            $rv = rename($filepath1, $filepath2);
+        }else{
+            $filepath1 = $this->ovroot . $path1.'.metajs';
+            $filepath2 = $this->ovroot . $path2.'.metajs';
+            $rv = rename($filepath1, $filepath2);
+        }
         return $rv;
     }
 
@@ -512,6 +519,9 @@ class Neim extends \OC\Files\Storage\Common  {
             $metax = $this->loadMetaData($path);
             if(isset($metax)) {
                 $fp = fopen($metax->url, $mode, false, $ctx);
+                if (!$fp) {
+                    $this->logit([$path, $mode, $matax], __FUNCTION__, __LINE__);
+                }
             }
         }
         $this->logit($path.' '.$mode.' '.$fp, __FUNCTION__, __LINE__);
@@ -562,7 +572,9 @@ class Neim extends \OC\Files\Storage\Common  {
     protected function savetometajs($path, $mjsobj, $mjsdata) {
         $dstdir = $this->ovmeta . '/' . substr($mjsobj->md5sum,0,2).'/'.substr($mjsobj->md5sum, 2,2);
         $dstfile = $dstdir . '/'.$mjsobj->md5sum;
-        mkdir($dstdir, 0744, true);
+        if (!file_exists($dstdir)) {
+            mkdir($dstdir, 0744, true);
+        }
         file_put_contents($dstfile, $mjsdata);
     }
     protected function metax2ocmeta($metax) {
@@ -808,10 +820,10 @@ class Neim extends \OC\Files\Storage\Common  {
 	 */
     public function getDirectDownload($path){
         $this->logit(['aaa',$path], __FUNCTION__, __LINE__);
-        $this->loadMetaData($path);
+        $metax = $this->loadMetaData($path);
         $filepath = $this->ovroot.$path;
-        if (isset($this->metajses[$path])) {
-            $rv = array('url'=>$this->metajses[$path]->url);
+        if (isset($metax[$path])) {
+            $rv = array('url'=>$metax[$path]->url);
         }
         if (!isset($rv)) {
             $rv = parent::getDirectDownload($path);
@@ -1052,7 +1064,11 @@ class Neim extends \OC\Files\Storage\Common  {
             $this->metajses[$path] = json_decode($data);
             return $this->metajses[$path];
         }else{
-            $this->logit([$path, 'metajs error'], __FUNCTION__, __LINE__);
+            $origok = file_exists($filepath);
+            $origokstr = $origok  ? 'yes' : 'no';
+            if ($origok) {
+                $this->logit([$path, 'metajs error not exist', 'origin', $origokstr], __FUNCTION__, __LINE__);
+            }
         }
         return false;
     }
@@ -1060,122 +1076,6 @@ class Neim extends \OC\Files\Storage\Common  {
         $this->metajses[$path] = $metajs;
     }
 
+    //
 
-    /**
-     * @return string
-     */
-    public function getId222() {
-        return 'dropbox_external::' . $this->clientId . '/' . $this->root;
-    }
-
-    public function file_exists222($path) {
-        if ($path === '' || $path === '/' || $path === '.') {
-            return true;
-        }
-        return parent::file_exists($path);
-    }
-
-    protected function getLargest222($arr, $default = 0) {
-        if (count($arr) === 0) {
-            return $default;
-        }
-        arsort($arr);
-        return array_values($arr)[0];
-    }
-
-    public function filemtime222($path) {
-        if ($this->is_dir($path)) {
-            if ($path === '.' || $path === '') {
-                $path = "/";
-            }
-
-            if ($this->cacheFilemtime && isset($this->cacheFilemtime[$path])) {
-                return $this->cacheFilemtime[$path];
-            }
-
-            $arr = [];
-            $contents = $this->flysystem->listContents($path, true);
-            foreach ($contents as $c) {
-                $arr[] = $c['type'] === 'file' ? $c['timestamp'] : 0;
-            }
-            $mtime = $this->getLargest($arr);
-        } else {
-            if ($this->cacheFilemtime && isset($this->cacheFilemtime[$path])) {
-                return $this->cacheFilemtime[$path];
-            }
-            $mtime = parent::filemtime($path);
-        }
-        $this->cacheFilemtime[$path] = $mtime;
-        return $mtime;
-    }
-
-    public function stat222($path) {
-        if ($path === '' || $path === '/' || $path === '.') {
-            return ['mtime' => 0];
-        }
-        return parent::stat($path);
-    }
-
-    public function getLatestCursor222($path = '') {
-        /*
-          try {
-          $dropbox = $this->adapter->getClient();
-          $resp = $dropbox->postToAPI('/files/list_folder/get_latest_cursor', ['path' => $path, 'recursive' => true, 'include_deleted' => true]);
-          $body = $resp->getDecodedBody();
-          if ($body) {
-          return $body['cursor'];
-          }
-          } catch (\Exception $e) {
-          $this->logger->logException($e, ['app' => self::APP_NAME]);
-          }
-        */
-        return null;
-    }
-
-    public function isStorageUpdated222($cursor) {
-        /*
-          try {
-          $client = new \GuzzleHttp\Client();
-          $params = ['cursor' => $cursor, 'timeout' => 30];
-          $response = $client->post('https://notify.dropboxapi.com/2/files/list_folder/longpoll', ['json' => $params]);
-          $body = json_decode($response->getBody(), true);
-
-          if ($body && isset($body['changes'])) {
-          return $body['changes'];
-          }
-          } catch (\Exception $e) {
-          $this->logger->logException($e, ['app' => self::APP_NAME]);
-          }
-        */
-        return true;
-    }
-
-    public function getModifiedPaths222($cursor) {
-        /*
-          $dropbox = $this->adapter->getClient();
-          $listFolderContinue = $dropbox->listFolderContinue($cursor);
-          $items = $listFolderContinue->getItems();
-
-          return $this->adapter->getModifiedFolders($items);
-        */
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function test222() {
-        /*
-          try {
-          $obj = $this->adapter->getClient()->getCurrentAccount();
-          if ($obj && $obj->getAccountId()) {
-          return true;
-          }
-          } catch (\Exception $e) {
-          $this->logger->logException($e, ['app' => self::APP_NAME]);
-          }
-        */
-        return true;
-        return false;
-    }
 }
